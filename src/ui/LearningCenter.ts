@@ -1,17 +1,6 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-
-interface Quiz {
-  question: string;
-  choices: string[];
-  correct: number;
-}
-
-interface LearningModule {
-  topic: string;
-  content: string;
-  quiz: Quiz[];
-}
+import { Quiz, LearningModule } from '../types/index.js';
 
 export class LearningCenter {
   async showLearningMenu(modules: LearningModule[]) {

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { startGame } from './index';
-import { GameDB } from './utils/db';
-import { UIManager } from './ui/UIManager';
+import { startGame } from './index.js';
+import { GameDB } from './utils/db.js';
+import { UIManager } from './ui/UIManager.js';
 
 const program = new Command();
 

@@ -1,4 +1,4 @@
-import { GameState, DailyReport } from '../types';
+import { GameState, DailyReport } from '../types/index.js';
 
 export function generateDailyReport(gameState: GameState): DailyReport {
   // Mock implementation for now

@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { DailyReport, GameState, Player, Portfolio, Agent } from '../types';
+import { DailyReport, GameState, Player, Portfolio, Agent } from '../types/index.js';
 
 export class UIManager {
   async showMainMenu(): Promise<string> {
@@ -97,24 +97,33 @@ export class UIManager {
     }
   }
 
-  async showAgentManagement(activeAgents: Agent[], availableAgents: Agent[]) {
+  async showAgentManagement(activeAgents: Agent[], availableAgents: Agent[], balance: number) {
     console.clear();
     console.log(chalk.bold('\n🤖 Agent Management'));
     console.log('=================');
 
     // Show active agents
-    console.log(chalk.bold('\nActive Agents:'));
-    activeAgents.forEach(agent => {
-      console.log(`  • ${chalk.green(agent.type)} - ${agent.communicationStyle} style`);
-      console.log(`    Traits: ${agent.personalityTraits.join(', ')}`);
-    });
+    if (activeAgents.length > 0) {
+      console.log(chalk.bold('\nActive Agents:'));
+      activeAgents.forEach(agent => {
+        console.log(`  • ${chalk.green(agent.type)} - $${agent.cost}/month`);
+        console.log(`    Style: ${agent.communicationStyle}`);
+        console.log(`    Traits: ${agent.personalityTraits.join(', ')}`);
+      });
+    } else {
+      console.log(chalk.yellow('\nNo active agents'));
+    }
 
     // Show available agents
-    console.log(chalk.bold('\nAvailable Agents:'));
-    availableAgents.forEach(agent => {
-      console.log(`  • ${chalk.blue(agent.type)} - ${agent.communicationStyle} style`);
-      console.log(`    Traits: ${agent.personalityTraits.join(', ')}`);
-    });
+    if (availableAgents.length > 0) {
+      console.log(chalk.bold(`\nAvailable Agents (Balance: $${balance})`));
+      availableAgents.forEach(agent => {
+        const levelLock = agent.status === 'locked' ? ` (Unlocks at Level ${agent.unlockedAtLevel})` : '';
+        console.log(`  • ${chalk.blue(agent.type)} - $${agent.cost}/month${levelLock}`);
+        console.log(`    Style: ${agent.communicationStyle}`);
+        console.log(`    Traits: ${agent.personalityTraits.join(', ')}`);
+      });
+    }
 
     return inquirer.prompt({
       type: 'list',
@@ -125,6 +134,41 @@ export class UIManager {
         { name: '➖ Dismiss Agent', value: 'fire' },
         { name: '↩️ Back to Main Menu', value: 'back' }
       ]
+    });
+  }
+
+  async showAgentHiring(availableAgents: Agent[], balance: number) {
+    console.log(chalk.bold(`\n💼 Available Agents (Balance: $${balance})`));
+    
+    const choices = availableAgents
+      .filter(agent => agent.status === 'available')
+      .map(agent => ({
+        name: `${agent.type} - $${agent.cost}/month | ${agent.personalityTraits.join(', ')}`,
+        value: agent.id,
+        disabled: balance < agent.cost ? 'Insufficient funds' : false
+      }));
+    
+    return inquirer.prompt({
+      type: 'list',
+      name: 'agentId',
+      message: 'Select agent to hire:',
+      choices: [...choices, { name: '↩️ Back', value: 'back' }]
+    });
+  }
+
+  async showAgentDismissal(activeAgents: Agent[]) {
+    console.log(chalk.bold("\n👥 Active Agents"));
+    
+    const choices = activeAgents.map(agent => ({
+      name: `${agent.type} | Cost: $${agent.cost}/month`,
+      value: agent.id
+    }));
+    
+    return inquirer.prompt({
+      type: 'list',
+      name: 'agentId',
+      message: 'Select agent to dismiss:',
+      choices: [...choices, { name: '↩️ Back', value: 'back' }]
     });
   }
 
@@ -185,5 +229,12 @@ export class UIManager {
       default: false
     });
     return confirmed;
+  }
+
+  async showActiveAgents(agents: Agent[]) {
+    console.log(chalk.bold("\n👥 Active Agents"));
+    agents.forEach(agent => {
+      console.log(`- ${agent.type}: ${agent.personalityTraits.join(', ')}`);
+    });
   }
 } 

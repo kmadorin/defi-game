@@ -1,4 +1,4 @@
-import { Agent, Asset, Transaction } from '../types';
+import { Agent, Asset, Transaction, Strategy } from '../types/index.js';
 
 export const initialDialog = [
   {
@@ -64,23 +64,38 @@ export const mockAgents: Agent[] = [
   {
     id: "manager-1",
     type: "manager",
+    cost: 100,
+    unlockedAtLevel: 1,
     personalityTraits: ["helpful", "patient", "encouraging"],
     communicationStyle: "casual",
-    status: "active"
+    status: "available"
   },
   {
     id: "yield-bot-1",
     type: "yield-bot",
+    cost: 75,
+    unlockedAtLevel: 2,
     personalityTraits: ["analytical", "precise", "proactive"],
     communicationStyle: "technical",
-    status: "active"
+    status: "locked"
   },
   {
     id: "risk-analyst-1",
     type: "risk-analyst",
+    cost: 150,
+    unlockedAtLevel: 3,
     personalityTraits: ["cautious", "thorough", "direct"],
     communicationStyle: "formal",
-    status: "active"
+    status: "locked"
+  },
+  {
+    id: "news-bot-1",
+    type: "news-aggregator",
+    cost: 50,
+    unlockedAtLevel: 2,
+    personalityTraits: ["informative", "alert", "fast"],
+    communicationStyle: "technical",
+    status: "locked"
   }
 ];
 

@@ -1,15 +1,18 @@
 import inquirer from 'inquirer';
-import { GameState } from '../types';
-import { initialDialog } from '../data/mockData';
-import { UIManager } from '../ui/UIManager';
+import { GameState } from '../types/index.js';
+import { initialDialog } from '../data/mockData.js';
+import { UIManager } from '../ui/UIManager.js';
+import { GameEngine } from '../models/GameEngine.js';
 
 export class DialogManager {
   private gameState: GameState;
   private uiManager: UIManager;
+  private gameEngine: GameEngine;
 
-  constructor(gameState: GameState, uiManager: UIManager) {
+  constructor(gameState: GameState, uiManager: UIManager, gameEngine: GameEngine) {
     this.gameState = gameState;
     this.uiManager = uiManager;
+    this.gameEngine = gameEngine;
   }
 
   async handleFirstInteraction(): Promise<void> {
@@ -36,7 +39,7 @@ export class DialogManager {
     await this.handleInitialPortfolio();
   }
 
-  private async handleFinancialGoals(): Promise<void> {
+  async handleFinancialGoals(): Promise<void> {
     const { goal } = await inquirer.prompt({
       type: 'list',
       name: 'goal',
@@ -76,7 +79,7 @@ export class DialogManager {
     this.gameState.financialGoal.timeframe = timeframe;
   }
 
-  private async handleRiskTolerance(): Promise<void> {
+  async handleRiskTolerance(): Promise<void> {
     const { risk } = await inquirer.prompt({
       type: 'list',
       name: 'risk',
@@ -134,6 +137,9 @@ export class DialogManager {
       case 'strategy_recommendation':
         await this.handleStrategyRecommendation();
         break;
+      case 'agent_management':
+        await this.handleAgentManagement();
+        break;
       default:
         await this.uiManager.showError(`Unknown dialog trigger: ${trigger}`);
     }
@@ -162,5 +168,49 @@ export class DialogManager {
   private async handleStrategyRecommendation(): Promise<void> {
     // Implement strategy recommendation dialog
     console.log('💡 Generating personalized strategies...');
+  }
+
+  async handleAgentManagement() {
+    while (true) {
+      const { action } = await this.uiManager.showAgentManagement(
+        this.gameEngine.getActiveAgents(),
+        this.gameEngine.getAvailableAgents(),
+        this.gameState.portfolio.totalBalance
+      );
+
+      try {
+        switch (action) {
+          case 'hire':
+            const { agentId: hireId } = await this.uiManager.showAgentHiring(
+              this.gameEngine.getAvailableAgents(),
+              this.gameState.portfolio.totalBalance
+            );
+            
+            if (hireId === 'back') break;
+            
+            const hireResult = this.gameEngine.hireAgent(hireId);
+            await this.uiManager.showSuccess(hireResult);
+            break;
+
+          case 'fire':
+            const { agentId: fireId } = await this.uiManager.showAgentDismissal(
+              this.gameEngine.getActiveAgents()
+            );
+            
+            if (fireId === 'back') break;
+            
+            const fireResult = this.gameEngine.fireAgent(fireId);
+            await this.uiManager.showSuccess(fireResult);
+            break;
+
+          case 'back':
+            return;
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          await this.uiManager.showError(error.message);
+        }
+      }
+    }
   }
 } 

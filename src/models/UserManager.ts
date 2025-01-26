@@ -1,5 +1,5 @@
-import { Player, GameState } from '../types';
-import { mockStrategies, educationalContent } from '../data/mockData';
+import { Player, GameState } from '../types/index.js';
+import { mockStrategies, educationalContent } from '../data/mockData.js';
 
 type UserLevel = 'novice' | 'advanced' | 'expert';
 type CommunicationStyle = 'formal' | 'casual' | 'technical';

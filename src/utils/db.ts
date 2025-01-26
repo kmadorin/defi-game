@@ -35,13 +35,13 @@ const defaultData: GameState = {
   currentDay: 0
 };
 
-class GameDB {
-  private db: Low<GameState>;
+export class GameDB {
+  private _db: Low<GameState>;
   private static instance: GameDB;
 
   private constructor() {
     const adapter = new JSONFile<GameState>('game-state.json');
-    this.db = new Low(adapter, defaultData);
+    this._db = new Low(adapter, defaultData);
   }
 
   static getInstance(): GameDB {
@@ -51,67 +51,71 @@ class GameDB {
     return GameDB.instance;
   }
 
+  get data(): GameState {
+    return this._db.data;
+  }
+
+  set data(value: GameState) {
+    this._db.data = value;
+  }
+
+  async read(): Promise<void> {
+    await this._db.read();
+    // Initialize with defaults if empty
+    if (!this._db.data) {
+      this._db.data = defaultData;
+    }
+  }
+
+  async write(): Promise<void> {
+    await this._db.write();
+  }
+
   async initialize(): Promise<void> {
-    await this.db.read();
+    await this.read();
     
     // Ensure all required fields exist
-    this.db.data = {
+    this._db.data = {
       ...defaultData,
-      ...this.db.data,
+      ...this._db.data,
       player: {
         ...defaultPlayer,
-        ...this.db.data?.player
+        ...this._db.data?.player
       },
       portfolio: {
         ...defaultPortfolio,
-        ...this.db.data?.portfolio
+        ...this._db.data?.portfolio
       },
       progress: {
         ...defaultProgress,
-        ...this.db.data?.progress
+        ...this._db.data?.progress
       }
     };
     
-    await this.db.write();
-  }
-
-  async save(): Promise<void> {
-    await this.db.write();
-  }
-
-  async load(): Promise<void> {
-    await this.db.read();
-  }
-
-  getData(): GameState {
-    return this.db.data;
-  }
-
-  setData(data: GameState): void {
-    this.db.data = data;
+    await this.write();
   }
 
   async updateField<K extends keyof GameState>(
     field: K,
     value: GameState[K]
   ): Promise<void> {
-    this.db.data = {
-      ...this.db.data,
+    this._db.data = {
+      ...this._db.data,
       [field]: value
     };
-    await this.save();
+    await this.write();
   }
 
   async resetGame(): Promise<void> {
-    this.db.data = { ...defaultData };
-    await this.save();
+    this._db.data = { ...defaultData };
+    await this.write();
   }
 
   async backup(): Promise<void> {
     const backupAdapter = new JSONFile<GameState>(
       `game-state-backup-${Date.now()}.json`
     );
-    const backupDb = new Low(backupAdapter, this.db.data);
+    const backupDb = new Low(backupAdapter, this._db.data);
     await backupDb.write();
   }
 }

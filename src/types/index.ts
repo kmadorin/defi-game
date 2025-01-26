@@ -67,9 +67,12 @@ export interface Achievement {
 export interface Agent {
   id: string;
   type: 'manager' | 'yield-bot' | 'risk-analyst' | 'news-aggregator';
+  cost: number;
+  unlockedAtLevel: number;
   personalityTraits: string[];
   communicationStyle: 'formal' | 'casual' | 'technical';
-  status: 'active' | 'inactive';
+  status: 'active' | 'locked' | 'available';
+  hiredAt?: number;
 }
 
 export interface DailyReport {
@@ -113,6 +116,7 @@ export interface MarketCondition {
   riskMultiplier: number;
   yieldBonus?: number;
   yieldPenalty?: number;
+  yieldMultiplier?: number;
   recommendedStrategies: string[];
 }
 

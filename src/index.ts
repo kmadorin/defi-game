@@ -1,17 +1,21 @@
-import { GameState } from './types';
-import { initializeDB } from './utils/db';
-import { GameEngine } from './models/GameEngine';
-import { UIManager } from './ui/UIManager';
-import { DialogManager } from './models/DialogManager';
+import { GameState } from './types/index.js';
+import { initializeDB } from './utils/db.js';
+import { GameEngine } from './models/GameEngine.js';
+import { UIManager } from './ui/UIManager.js';
+import { DialogManager } from './models/DialogManager.js';
 
-async function startGame() {
+export async function startGame(level = 'novice') {
   // Initialize core systems
   const db = await initializeDB();
-  await db.read(); // Load initial state
+  await db.initialize(); // Use initialize instead of read
+  
+  if (level) {
+    db.data.userLevel = level as GameState['userLevel'];
+  }
   
   const uiManager = new UIManager();
   const gameEngine = new GameEngine(db.data);
-  const dialogManager = new DialogManager(db.data, uiManager);
+  const dialogManager = new DialogManager(db.data, uiManager, gameEngine);
   
   // Check if this is first time running
   if (!db.data.player.name) {
@@ -41,14 +45,18 @@ async function startGame() {
       // Small delay to prevent UI flicker
       await new Promise(resolve => setTimeout(resolve, 100));
     } catch (error) {
-      await uiManager.showError(error.message);
+      if (error instanceof Error) {
+        await uiManager.showError(error.message);
+      } else {
+        await uiManager.showError('An unknown error occurred');
+      }
     }
   }
 }
 
 async function handleDailyUpdate(
   gameEngine: GameEngine,
-  db: any,
+  db: ReturnType<typeof initializeDB>,
   uiManager: UIManager
 ) {
   // Process daily updates
@@ -74,21 +82,7 @@ async function handleUserAction(
       break;
       
     case 'agents':
-      const agentAction = await uiManager.showAgentManagement(
-        gameState.activeAgents,
-        [] // TODO: Get available agents from game engine
-      );
-      
-      if (agentAction === 'hire') {
-        // TODO: Implement agent hiring
-        await uiManager.showSuccess('Agent hired successfully!');
-      } else if (agentAction === 'fire') {
-        // TODO: Implement agent firing
-        const confirmed = await uiManager.confirmAction('Are you sure you want to dismiss this agent?');
-        if (confirmed) {
-          await uiManager.showSuccess('Agent dismissed.');
-        }
-      }
+      await dialogManager.handleAgentManagement();
       break;
       
     case 'strategies':
@@ -114,8 +108,14 @@ async function handleUserAction(
   }
 }
 
-// Start the game
-startGame().catch(async error => {
-  const uiManager = new UIManager();
-  await uiManager.showError(`Game crashed: ${error.message}`);
-}); 
+// Direct script execution
+if (import.meta.url.endsWith(process.argv[1])) {
+  startGame().catch(async error => {
+    const uiManager = new UIManager();
+    if (error instanceof Error) {
+      await uiManager.showError(`Game crashed: ${error.message}`);
+    } else {
+      await uiManager.showError('Game crashed: An unknown error occurred');
+    }
+  });
+} 
