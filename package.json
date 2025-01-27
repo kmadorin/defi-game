@@ -11,7 +11,8 @@
     "build": "tsc",
     "dev": "tsx watch src/cli.ts start",
     "backup": "tsx src/cli.ts backup",
-    "reset": "tsx src/cli.ts reset"
+    "reset": "tsx src/cli.ts reset",
+    "youtube": "node scripts/getYoutubeTranscript.js"
   },
   "keywords": [
     "defi",
@@ -30,7 +31,8 @@
     "inquirer": "^9.2.15",
     "lowdb": "^7.0.1",
     "ora": "^8.0.1",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "youtube-transcript": "^1.2.1"
   },
   "devDependencies": {
     "@types/inquirer": "^9.0.7",
