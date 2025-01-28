@@ -1,6 +1,22 @@
+# Dependencies
 node_modules/
+
+# Environment variables
+.env
+
+# Logs
+logs/*.log
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+
 dist/
 .env, .env.*
-*.log
-.DS_Store
 transcripts/
+
+# Additional rules
+!.gitkeep
