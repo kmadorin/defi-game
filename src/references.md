@@ -1,1 +1,0 @@
-[Games on the Linux console](https://ttygames.wordpress.com/)
