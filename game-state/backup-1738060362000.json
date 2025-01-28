@@ -1,18 +1,18 @@
 {
   "userLevel": "novice",
   "financialGoal": {
-    "targetAmount": 100,
+    "targetAmount": 1000,
     "timeframe": "month",
-    "riskTolerance": "low"
+    "riskTolerance": "medium"
   },
   "player": {
-    "name": "Kirill",
+    "name": "",
     "level": "novice",
     "xp": 0,
     "badges": []
   },
   "portfolio": {
-    "totalBalance": 750,
+    "totalBalance": 0,
     "assets": [],
     "history": []
   },

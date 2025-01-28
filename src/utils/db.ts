@@ -1,6 +1,7 @@
 import { Low } from 'lowdb';
 import { JSONFile } from 'lowdb/node';
 import { GameState, Player, Portfolio, Progress } from '../types';
+import path from 'path';
 
 const defaultPlayer: Player = {
   name: '',
@@ -38,9 +39,12 @@ const defaultData: GameState = {
 export class GameDB {
   private _db: Low<GameState>;
   private static instance: GameDB;
+  private readonly stateDir = 'game-state';
+  private readonly mainStateFile = 'main.json';
 
   private constructor() {
-    const adapter = new JSONFile<GameState>('game-state.json');
+    const statePath = path.join(this.stateDir, this.mainStateFile);
+    const adapter = new JSONFile<GameState>(statePath);
     this._db = new Low(adapter, defaultData);
   }
 
@@ -112,9 +116,9 @@ export class GameDB {
   }
 
   async backup(): Promise<void> {
-    const backupAdapter = new JSONFile<GameState>(
-      `game-state-backup-${Date.now()}.json`
-    );
+    const timestamp = Date.now();
+    const backupPath = path.join(this.stateDir, `backup-${timestamp}.json`);
+    const backupAdapter = new JSONFile<GameState>(backupPath);
     const backupDb = new Low(backupAdapter, this._db.data);
     await backupDb.write();
   }
