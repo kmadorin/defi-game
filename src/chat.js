@@ -5,65 +5,81 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-// Очистка консоли и вывод заголовка
+// Clear console and show header
 function clearAndShowHeader() {
   console.clear()
   console.log(chalk.blue.bold('🤖 DeFi Portfolio Manager'))
   console.log(chalk.cyan(`
-👋 Привет! Я ваш DeFi портфельный менеджер.
-Я помогу вам создать кошелек и управлять им.
+👋 Hi! I'm your DeFi portfolio manager.
+I'll help you create and manage your wallet.
   `))
 }
 
-// Обработка выхода
+// Handle exit
 function handleExit() {
-  console.log(chalk.yellow('\n👋 До свидания!'))
+  console.log(chalk.yellow('\n👋 Goodbye!'))
   process.exit(0)
 }
 
 async function main() {
-  // Проверяем наличие API ключа
+  // Check for API key
   if (!process.env.ANTHROPIC_API_KEY) {
     console.error(chalk.red('Error: ANTHROPIC_API_KEY not found in .env file'))
     process.exit(1)
   }
   
   const manager = new PortfolioManager(process.env.ANTHROPIC_API_KEY)
+  let pendingTxId = 0
   
-  // Очищаем консоль и показываем заголовок
+  // Clear console and show header
   clearAndShowHeader()
 
-  // Обработчики сигналов
+  // Signal handlers
   process.on('SIGINT', handleExit)
   process.on('SIGTERM', handleExit)
 
-  // Основной цикл чата
+  // Main chat loop
   while(true) {
     try {
       const { message } = await inquirer.prompt({
         type: 'input',
         name: 'message',
-        message: chalk.green('Вы:'),
+        message: chalk.green('You:'),
         prefix: '💬'
       })
       
-      // Проверяем выход
+      // Check for exit
       if (message.toLowerCase() === 'exit' || message.toLowerCase() === 'quit') {
         handleExit()
       }
+
+      // Process message and handle confirmations
+      const response = await manager.processMessage(message)
       
-      await manager.processMessage(message)
-    } catch (error) {
-      if (error.isTtyError) {
-        // Ошибка терминала, вероятно из-за перезапуска
+      // Skip further processing if response is null (confirmation was handled)
+      if (response === null) {
         continue
       }
-      console.error(chalk.red('❌ Ошибка:'), error.message)
+      
+      // If response indicates a pending transaction, store it
+      if (response?.needsConfirmation && response.rawTx) {
+        manager.pendingTransactions.set(pendingTxId++, {
+          rawTx: response.rawTx,
+          timestamp: Date.now()
+        })
+      }
+
+    } catch (error) {
+      if (error.isTtyError) {
+        // Terminal error, likely due to restart
+        continue
+      }
+      console.error(chalk.red('❌ Error:'), error.message)
     }
   }
 }
 
-// Запускаем приложение
+// Start the application
 main().catch(error => {
   console.error(chalk.red('Fatal error:'), error)
   process.exit(1)

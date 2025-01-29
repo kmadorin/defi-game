@@ -2,7 +2,7 @@ import { createPublicClient, createWalletClient, http, parseEther } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 
-// Клиенты для работы с блокчейном
+// Blockchain clients
 export function createClients(privateKey) {
   const account = privateKeyToAccount(privateKey)
   
@@ -20,7 +20,7 @@ export function createClients(privateKey) {
   return { publicClient, walletClient, account }
 }
 
-// Функции для работы с блокчейном
+// Blockchain functions
 export async function getBalance(address, publicClient) {
   let targetAddress = address
   if (!targetAddress) {
@@ -34,31 +34,151 @@ export async function getBalance(address, publicClient) {
   return balance
 }
 
-// Функция для подготовки транзакции
+// Function to prepare transaction
 export async function prepareSendTransaction(walletClient, to, valueInEth) {
   try {
     const valueInWei = parseEther(valueInEth)
+    const rawTx = await walletClient.prepareTransactionRequest({
+      value: valueInWei,
+      to 
+    })
+
     return {
-      to,
-      value: valueInWei.toString(),
-      from: walletClient.account.address
+      rawTx,
+      error: null,
+      simulationResults: null
     }
   } catch (error) {
-    throw new Error(`Ошибка подготовки транзакции: ${error.message}`)
+    return {
+      rawTx: null,
+      error: `Transaction preparation error: ${error.message}`,
+      simulationResults: null
+    }
   }
 }
 
-export async function sendTransaction(walletClient, to, value) {
-  const hash = await walletClient.sendTransaction({
-    to,
-    value: BigInt(value)
-  })
-  return hash
+export async function sendTransaction(walletClient, rawTx) {
+  try {
+    // Convert string values back to BigInt where needed
+    const tx = {
+      ...rawTx,
+      value: BigInt(rawTx.value),
+      gas: rawTx.gas ? BigInt(rawTx.gas) : undefined,
+      maxFeePerGas: rawTx.maxFeePerGas ? BigInt(rawTx.maxFeePerGas) : undefined,
+      maxPriorityFeePerGas: rawTx.maxPriorityFeePerGas ? BigInt(rawTx.maxPriorityFeePerGas) : undefined
+    }
+    
+    const hash = await walletClient.sendTransaction(tx)
+    return {
+      hash,
+      error: null
+    }
+  } catch (error) {
+    return {
+      hash: null,
+      error: `Transaction sending error: ${error.message}`
+    }
+  }
 }
 
-// Функция для создания нового кошелька
+// Function to create new wallet
 export function generatePrivateKey() {
   const bytes = new Uint8Array(32)
   crypto.getRandomValues(bytes)
   return '0x' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
 } 
+
+export async function simulateTransactionWithAlchemy({ from, to, value, data }) {
+  const hexValue = `0x${value.toString(16)}`
+  
+  const options = {
+      method: 'POST',
+      headers: { accept: 'application/json', 'content-type': 'application/json' },
+      body: JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'alchemy_simulateAssetChanges',
+          params: [
+              {
+                  from,
+                  to,
+                  value: hexValue,
+                  ...(data && { data })
+              }
+          ]
+      })
+  };
+
+  try {
+    const resultJSON = await fetch('https://eth-sepolia.g.alchemy.com/v2/vFCuc206bPWJtECIZ44QF6qrnsKLZXQa', options)
+    const result = await resultJSON.json();
+    return {
+      result,
+      error: null
+    };
+  } catch (error) {
+    return {
+      result: null,
+      error: `Failed to simulate transaction: ${error.message}`
+    };
+  }
+}
+
+export async function sendRawTransaction(walletClient, serializedTransaction) {
+  try {
+    const hash = await walletClient.sendRawTransaction(serializedTransaction)
+    return {
+      hash,
+      error: null
+    }
+  } catch (error) {
+    console.log('error: ', error)
+    return {
+      hash: null, 
+      error: `Failed to send raw transaction: ${error.message}`
+    }
+  }
+}
+
+export async function signTransaction(walletClient, tx) {
+  try {
+    const serializedTransaction = await walletClient.signTransaction(tx)
+    return {
+      serializedTransaction,
+      error: null
+    }
+  } catch (error) {
+    return {
+      serializedTransaction: null,
+      error: `Failed to sign transaction: ${error.message}`
+    }
+  }
+}
+
+export async function signAndSendRawTransaction(walletClient, rawTx) {
+  try {
+    // Convert string values back to BigInt where needed
+    const tx = {
+      to: rawTx.to,
+      value: BigInt(rawTx.value),
+      chainId: rawTx.chainId,
+      type: rawTx.type,
+      maxPriorityFeePerGas: rawTx.maxPriorityFeePerGas ? BigInt(rawTx.maxPriorityFeePerGas) : undefined,
+      maxFeePerGas: rawTx.maxFeePerGas ? BigInt(rawTx.maxFeePerGas) : undefined,
+      gas: rawTx.gas ? BigInt(rawTx.gas) : undefined,
+      nonce: rawTx.nonce
+    }
+
+    const hash = await walletClient.sendTransaction(tx)
+    return {
+      hash,
+      error: null
+    }
+  } catch (error) {
+    return {
+      hash: null,
+      error: `Transaction error: ${error.message}`
+    }
+  }
+}
+

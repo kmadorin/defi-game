@@ -1,21 +1,21 @@
 import Anthropic from '@anthropic-ai/sdk';
 import chalk from 'chalk'
-import { createClients, getBalance, sendTransaction, generatePrivateKey } from './blockchain.js'
+import { createClients, getBalance, generatePrivateKey, prepareSendTransaction, simulateTransactionWithAlchemy, signAndSendRawTransaction } from './blockchain.js'
 import * as fs from 'fs/promises'
 import dotenv from 'dotenv'
 
 dotenv.config()
 
-// Функция для вывода сообщений чата
+// Function to print chat messages
 function printChat(message, role) {
 	if (role === 'user') {
-		console.log(chalk.cyan(`💬 Вы: ${message}`));
+		console.log(chalk.cyan(`💬 You: ${message}`));
 	} else if (role === 'assistant') {
-		console.log(chalk.cyan(`🤖 Менеджер: ${message}`));
+		console.log(chalk.cyan(`🤖 Manager: ${message}`));
 	}
 }
 
-// Базовые инструменты агента
+// Basic agent tools
 const tools = {
 	getBalance: async ({ address }) => {
 		try {
@@ -27,23 +27,13 @@ const tools = {
 		}
 	},
 
-	sendTransaction: async ({ to, value }) => {
-		try {
-			const { walletClient } = createClients(process.env.PRIVATE_KEY)
-			const hash = await sendTransaction(walletClient, to, value)
-			return { hash }
-		} catch (error) {
-			throw error
-		}
-	},
-
 	createWallet: async () => {
 		try {
-			// Проверяем существующий приватный ключ в .env
+			// Check existing private key in .env
 			let privateKey = process.env.PRIVATE_KEY;
 			let envContent = '';
 			let isNewWallet = false;
-			
+
 			try {
 				envContent = await fs.readFile('.env', 'utf-8');
 			} catch (error) {
@@ -51,93 +41,179 @@ const tools = {
 					envContent = 'ANTHROPIC_API_KEY=' + process.env.ANTHROPIC_API_KEY + '\n';
 				} else {
 					return {
-						error: 'Не удалось прочитать файл .env: ' + error.message
+						error: 'Could not read .env file: ' + error.message
 					};
 				}
 			}
 
-			// Если приватного ключа нет или он невалидный, создаем новый
+			// If private key doesn't exist or is invalid, create new one
 			if (!privateKey || !privateKey.startsWith('0x')) {
 				privateKey = generatePrivateKey();
 				isNewWallet = true;
-				
-				// Удаляем старую запись PRIVATE_KEY если она есть
+
+				// Remove old PRIVATE_KEY entry if exists
 				const envLines = envContent.split('\n').filter(line => !line.startsWith('PRIVATE_KEY='));
-				
-				// Добавляем новый приватный ключ
+
+				// Add new private key
 				envLines.push(`PRIVATE_KEY=${privateKey}`);
 				const newContent = envLines.join('\n');
-				
+
 				try {
-					// Записываем обновленный файл
+					// Write updated file
 					await fs.writeFile('.env', newContent);
-					// Обновляем process.env
+					// Update process.env
 					process.env.PRIVATE_KEY = privateKey;
 				} catch (error) {
 					return {
-						error: 'Не удалось сохранить приватный ключ: ' + error.message
+						error: 'Could not save private key: ' + error.message
 					};
 				}
 			}
 
-			// Создаем аккаунт из приватного ключа
+			// Create account from private key
 			const { account } = createClients(privateKey);
-			
-			// Возвращаем результат с информацией о статусе
+
+			// Return result with status info
 			return {
 				address: account.address,
 				status: isNewWallet ? 'created' : 'existing',
-				message: isNewWallet 
-					? 'Создан новый кошелек' 
-					: 'Использован существующий кошелек'
+				message: isNewWallet
+					? 'New wallet created'
+					: 'Using existing wallet'
 			};
-			
+
 		} catch (error) {
 			return {
-				error: 'Не удалось создать/получить кошелек: ' + error.message
+				error: 'Could not create/get wallet: ' + error.message
 			};
+		}
+	},
+
+	prepareSendTransaction: async ({ to, valueInEth }) => {
+		try {
+			const { walletClient, account } = createClients(process.env.PRIVATE_KEY)
+
+			// 1. Prepare tx
+			const prepResult = await prepareSendTransaction(walletClient, to, valueInEth)
+			if (prepResult.error) {
+				return { error: prepResult.error }
+			}
+
+			// 2. Simulate
+			const simResult = await simulateTransactionWithAlchemy({
+				from: account.address,
+				to: to,
+				value: prepResult.rawTx.value,
+				data: prepResult.rawTx.data
+			})
+			if (simResult.error) {
+				return { error: simResult.error }
+			}
+
+			// Format simulation results
+			const humanReadableSimulation = `
+📊 Simulation Results:
+- From: ${account.address}
+- To: ${to}
+- Amount: ${valueInEth} ETH
+- Gas: ${simResult.result.gasEstimate || 'N/A'}
+- Balance Changes: ${simResult.result.balanceChanges || 'N/A'}
+			`
+
+			// Convert BigInt values to strings for storage
+			const serializedTx = {
+				...prepResult.rawTx,
+				value: prepResult.rawTx.value.toString(),
+				gas: prepResult.rawTx.gas?.toString(),
+				maxFeePerGas: prepResult.rawTx.maxFeePerGas?.toString(),
+				maxPriorityFeePerGas: prepResult.rawTx.maxPriorityFeePerGas?.toString()
+			}
+
+			return {
+				simulation: humanReadableSimulation,
+				rawTx: serializedTx,
+				needsConfirmation: true,
+				message: `${humanReadableSimulation}\n\nConfirm transaction (yes/no):`
+			}
+		} catch (error) {
+			return { error: `Transaction preparation error: ${error.message}` }
 		}
 	}
 }
 
-// Основной класс агента
+// Main agent class
 export class PortfolioManager {
 	constructor(apiKey) {
 		this.claude = new Anthropic({ apiKey })
 		this.tools = tools
 		this.memory = []
+		this.pendingTransactions = new Map() // Track pending confirmations
+		this.transactionTimeout = 300_000 // 5 minutes
+	}
+
+	isConfirmationResponse(message) {
+		return this.pendingTransactions.size > 0 && /^(да|yes|y|нет|no|n)/i.test(message)
+	}
+
+	async handleTransactionConfirmation(message) {
+		const pendingTx = Array.from(this.pendingTransactions.values())[0]
+		if (!pendingTx) return null
+
+		if (/^(да|yes|y)/i.test(message)) {
+			const { walletClient } = createClients(process.env.PRIVATE_KEY)
+			const result = await signAndSendRawTransaction(walletClient, pendingTx.rawTx)
+			this.pendingTransactions.clear()
+
+			if (result.error) {
+				return `❌ Transaction error: ${result.error}`
+			}
+			return `✅ Transaction sent! Hash: ${result.hash}`
+		}
+
+		this.pendingTransactions.clear()
+		return "❌ Transaction cancelled"
 	}
 
 	async processMessage(message) {
 		try {
+			// Check for pending tx first
+			if (this.isConfirmationResponse(message)) {
+				const response = await this.handleTransactionConfirmation(message)
+				if (response) {
+					printChat(response, 'assistant')
+					return response
+				}
+				return null
+			}
+
 			this.memory.push(`User: ${message}`)
-			
+
 			const toolsList = [{
 				name: "getBalance",
-				description: "Получить баланс кошелька (по умолчанию ваш собственный)",
+				description: "Get wallet balance (defaults to your own)",
 				input_schema: {
 					type: "object",
 					properties: {
 						address: {
 							type: "string",
-							description: "Адрес кошелька (необязательно)"
+							description: "Wallet address (optional)"
 						}
 					},
 					required: []
 				}
 			}, {
 				name: "prepareSendTransaction",
-				description: "Подготовить транзакцию для отправки ETH. Пример: 'Отправить 0.1 ETH на адрес 0x...'",
+				description: "Prepare transaction to send ETH. Example: 'Send 0.1 ETH to address 0x...'",
 				input_schema: {
 					type: "object",
 					properties: {
 						to: {
 							type: "string",
-							description: "Адрес получателя"
+							description: "Recipient address"
 						},
 						valueInEth: {
 							type: "string",
-							description: "Количество ETH для отправки (в формате 0.00)"
+							description: "Amount of ETH to send (in 0.00 format)"
 						}
 					},
 					required: ["to", "valueInEth"]
@@ -155,7 +231,7 @@ export class PortfolioManager {
 			const response = await this.claude.messages.create({
 				model: "claude-3-sonnet-20240229",
 				max_tokens: 1024,
-				system: `You are a DeFi Portfolio Manager. Help users manage their crypto wallet. Communicate in Russian.
+				system: `You are a DeFi Portfolio Manager. Help users manage their crypto wallet.
 When createWallet returns status "existing", just inform user that they already have a wallet and show its address.
 When user asks about wallet balance, use getBalance tool. If no address is specified, it will show balance for user's wallet.
 Be concise and direct in your responses. Never show or mention private keys in your response.`,
@@ -163,25 +239,27 @@ Be concise and direct in your responses. Never show or mention private keys in y
 				tools: toolsList
 			});
 
-			// console.log('Got response from Claude');
-			//console.log('Full response:', JSON.stringify(response, null, 2));
-
 			const toolUseBlocks = response.content.filter(block => block.type === 'tool_use');
-			
+
 			if (toolUseBlocks.length > 0) {
 				const results = await this.executeTools(toolUseBlocks);
-				console.log('Tool results:', results);
-				
+
+				// If this is a transaction that needs confirmation, return the full result
+				if (results[0]?.result?.needsConfirmation) {
+					printChat(results[0].result.message, 'assistant');
+					return results[0].result;
+				}
+
 				const followUpResponse = await this.claude.messages.create({
 					model: "claude-3-sonnet-20240229",
 					max_tokens: 1024,
-					system: `You are a DeFi Portfolio Manager. Help users manage their crypto wallet. Communicate in Russian.
+					system: `You are a DeFi Portfolio Manager. Help users manage their crypto wallet.
 When createWallet returns status "existing", just inform user that they already have a wallet and show its address.
 When user asks about wallet balance, use getBalance tool. If no address is specified, it will show balance for user's wallet.
 Be concise and direct in your responses. Never show or mention private keys in your response.`,
 					messages: [
 						{ role: 'user', content: message },
-						{ 
+						{
 							role: 'assistant',
 							content: [{
 								type: 'tool_use',
@@ -190,7 +268,7 @@ Be concise and direct in your responses. Never show or mention private keys in y
 								input: toolUseBlocks[0].input
 							}]
 						},
-						{ 
+						{
 							role: 'user',
 							content: [{
 								type: 'tool_result',
@@ -220,8 +298,7 @@ Be concise and direct in your responses. Never show or mention private keys in y
 			throw new Error('No valid response content found');
 
 		} catch (error) {
-			console.error('Error in processMessage:', error);
-			const errorMessage = `Произошла ошибка при обработке запроса: ${error.message}. Пожалуйста, попробуйте еще раз.`;
+			const errorMessage = `An error occurred while processing request: ${error.message}. Please try again.`;
 			printChat(errorMessage, 'assistant');
 			return errorMessage;
 		}
