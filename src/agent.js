@@ -15,19 +15,42 @@ function printChat(message, role) {
 	}
 }
 
-// Basic agent tools
-const tools = {
-	getBalance: async ({ address }) => {
-		try {
-			const { publicClient } = createClients(process.env.PRIVATE_KEY)
-			const balance = await getBalance(address, publicClient)
-			return { balance: balance.toString() }
-		} catch (error) {
-			throw error
-		}
-	},
+// Add explicit error classes for better error handling
+class AgentError extends Error {
+	constructor(message, context = {}) {
+		super(message);
+		this.name = 'AgentError';
+		this.context = context;
+	}
+}
 
-	createWallet: async () => {
+class TransactionError extends AgentError {
+	constructor(message, transactionData) {
+		super(message, { transactionData });
+		this.name = 'TransactionError';
+	}
+}
+
+// Split tools into separate class for better organization
+class AgentTools {
+	constructor() {
+		this.registeredTools = {
+			getBalance: this.handleGetBalance,
+			createWallet: this.handleCreateWallet,
+			prepareSendTransaction: this.handlePrepareTransaction
+		};
+	}
+
+	async handleGetBalance({ address }) {
+		try {
+			const { publicClient } = createClients(process.env.PRIVATE_KEY);
+			return { balance: (await getBalance(address, publicClient)).toString() };
+		} catch (error) {
+			throw new AgentError('Balance check failed', { address, error });
+		}
+	}
+
+	async handleCreateWallet() {
 		try {
 			// Check existing private key in .env
 			let privateKey = process.env.PRIVATE_KEY;
@@ -87,9 +110,9 @@ const tools = {
 				error: 'Could not create/get wallet: ' + error.message
 			};
 		}
-	},
+	}
 
-	prepareSendTransaction: async ({ to, valueInEth }) => {
+	async handlePrepareTransaction({ to, valueInEth }) {
 		try {
 			const { walletClient, account } = createClients(process.env.PRIVATE_KEY)
 
@@ -141,14 +164,19 @@ const tools = {
 	}
 }
 
-// Main agent class
+// Main agent class refactored with clearer method organization
 export class PortfolioManager {
 	constructor(apiKey) {
-		this.claude = new Anthropic({ apiKey })
-		this.tools = tools
-		this.memory = []
-		this.pendingTransactions = new Map() // Track pending confirmations
-		this.transactionTimeout = 300_000 // 5 minutes
+		this.claude = new Anthropic({ apiKey });
+		this.tools = new AgentTools().registeredTools;
+		this.memory = [];
+		this.pendingTransactions = new Map();
+		this.transactionTimeout = 300_000;
+		
+		// Centralized system prompt
+		this.systemPrompt = `You are a DeFi Portfolio Manager. Help users manage their crypto wallet.
+			When createWallet returns status "existing", inform user they have a wallet and show address.
+			Use getBalance when asked about balances. Never reveal private keys.`;
 	}
 
 	isConfirmationResponse(message) {
@@ -157,7 +185,7 @@ export class PortfolioManager {
 
 	async handleTransactionConfirmation(message) {
 		const pendingTx = Array.from(this.pendingTransactions.values())[0]
-		if (!pendingTx) return null
+		if (!pendingTx?.rawTx) return null  // Add check for rawTx
 
 		if (/^(да|yes|y)/i.test(message)) {
 			const { walletClient } = createClients(process.env.PRIVATE_KEY)
@@ -174,133 +202,90 @@ export class PortfolioManager {
 		return "❌ Transaction cancelled"
 	}
 
+	// Add method to store transaction
+	storePendingTransaction(transaction) {
+		this.pendingTransactions.clear() // Clear any old transactions
+		this.pendingTransactions.set(0, {
+			rawTx: transaction,
+			timestamp: Date.now()
+		})
+	}
+
+	// Extract complex logic into separate methods
+	async handleToolResponse(toolResults) {
+		const firstResult = toolResults[0]?.result;
+		
+		if (firstResult?.needsConfirmation) {
+			printChat(firstResult.message, 'assistant');
+			return firstResult;
+		}
+
+		return this.generateFollowUpResponse(toolResults);
+	}
+
+	async generateFollowUpResponse(toolResults) {
+		const followUpResponse = await this.claude.messages.create({
+			model: "claude-3-sonnet-20240229",
+			max_tokens: 1024,
+			system: this.systemPrompt,
+			messages: [
+				{ 
+					role: 'assistant',
+					content: [{
+						type: 'tool_use',
+						id: 'tool_1',
+						name: toolResults[0].tool,
+						input: toolResults[0].parameters
+					}]
+				},
+				{
+					role: 'user',
+					content: [{
+						type: 'tool_result',
+						tool_use_id: 'tool_1',
+						content: JSON.stringify(toolResults[0].result)
+					}]
+				}
+			],
+			tools: this.getToolsConfig()
+		});
+
+		const textBlocks = followUpResponse.content.filter(block => block.type === 'text');
+		if (textBlocks.length > 0) {
+			const responseText = textBlocks[0].text;
+			printChat(responseText, 'assistant');
+			return responseText;
+		}
+		throw new Error('No valid response content found');
+	}
+
+	// Simplified main processing flow
 	async processMessage(message) {
-		try {
-			// Check for pending tx first
-			if (this.isConfirmationResponse(message)) {
-				const response = await this.handleTransactionConfirmation(message)
-				if (response) {
-					printChat(response, 'assistant')
-					return response
-				}
-				return null
+		if (this.isConfirmationResponse(message)) {
+			const response = await this.handleTransactionConfirmation(message);
+			if (response) {
+				printChat(response, 'assistant');
 			}
+			return response;
+		}
 
-			this.memory.push(`User: ${message}`)
-
-			const toolsList = [{
-				name: "getBalance",
-				description: "Get wallet balance (defaults to your own)",
-				input_schema: {
-					type: "object",
-					properties: {
-						address: {
-							type: "string",
-							description: "Wallet address (optional)"
-						}
-					},
-					required: []
-				}
-			}, {
-				name: "prepareSendTransaction",
-				description: "Prepare transaction to send ETH. Example: 'Send 0.1 ETH to address 0x...'",
-				input_schema: {
-					type: "object",
-					properties: {
-						to: {
-							type: "string",
-							description: "Recipient address"
-						},
-						valueInEth: {
-							type: "string",
-							description: "Amount of ETH to send (in 0.00 format)"
-						}
-					},
-					required: ["to", "valueInEth"]
-				}
-			}, {
-				name: "createWallet",
-				description: "Creates a new wallet or returns existing one",
-				input_schema: {
-					type: "object",
-					properties: {},
-					required: []
-				}
-			}];
-
+		this.memory.push(`User: ${message}`);
+		
+		try {
 			const response = await this.claude.messages.create({
 				model: "claude-3-sonnet-20240229",
 				max_tokens: 1024,
-				system: `You are a DeFi Portfolio Manager. Help users manage their crypto wallet.
-When createWallet returns status "existing", just inform user that they already have a wallet and show its address.
-When user asks about wallet balance, use getBalance tool. If no address is specified, it will show balance for user's wallet.
-Be concise and direct in your responses. Never show or mention private keys in your response.`,
+				system: this.systemPrompt,
 				messages: [{ role: 'user', content: message }],
-				tools: toolsList
+				tools: this.getToolsConfig()
 			});
 
-			const toolUseBlocks = response.content.filter(block => block.type === 'tool_use');
-
-			if (toolUseBlocks.length > 0) {
-				const results = await this.executeTools(toolUseBlocks);
-
-				// If this is a transaction that needs confirmation, return the full result
-				if (results[0]?.result?.needsConfirmation) {
-					printChat(results[0].result.message, 'assistant');
-					return results[0].result;
-				}
-
-				const followUpResponse = await this.claude.messages.create({
-					model: "claude-3-sonnet-20240229",
-					max_tokens: 1024,
-					system: `You are a DeFi Portfolio Manager. Help users manage their crypto wallet.
-When createWallet returns status "existing", just inform user that they already have a wallet and show its address.
-When user asks about wallet balance, use getBalance tool. If no address is specified, it will show balance for user's wallet.
-Be concise and direct in your responses. Never show or mention private keys in your response.`,
-					messages: [
-						{ role: 'user', content: message },
-						{
-							role: 'assistant',
-							content: [{
-								type: 'tool_use',
-								id: toolUseBlocks[0].id,
-								name: toolUseBlocks[0].name,
-								input: toolUseBlocks[0].input
-							}]
-						},
-						{
-							role: 'user',
-							content: [{
-								type: 'tool_result',
-								tool_use_id: toolUseBlocks[0].id,
-								content: JSON.stringify(results[0].result)
-							}]
-						}
-					],
-					tools: toolsList
-				});
-
-				const textBlocks = followUpResponse.content.filter(block => block.type === 'text');
-				if (textBlocks.length > 0) {
-					const responseText = textBlocks[0].text;
-					printChat(responseText, 'assistant');
-					return responseText;
-				}
-			} else {
-				const textBlocks = response.content.filter(block => block.type === 'text');
-				if (textBlocks.length > 0) {
-					const responseText = textBlocks[0].text;
-					printChat(responseText, 'assistant');
-					return responseText;
-				}
-			}
-
-			throw new Error('No valid response content found');
-
+			const toolCalls = response.content.filter(block => block.type === 'tool_use');
+			return toolCalls.length > 0 
+				? this.handleToolsFlow(message, toolCalls)
+				: this.handleTextResponse(response);
 		} catch (error) {
-			const errorMessage = `An error occurred while processing request: ${error.message}. Please try again.`;
-			printChat(errorMessage, 'assistant');
-			return errorMessage;
+			return this.handleProcessingError(error);
 		}
 	}
 
@@ -334,5 +319,68 @@ Be concise and direct in your responses. Never show or mention private keys in y
 		}
 
 		return results
+	}
+
+	handleProcessingError(error) {
+		const errorMessage = `An error occurred while processing request: ${error.message}. Please try again.`;
+		printChat(errorMessage, 'assistant');
+		return errorMessage;
+	}
+
+	getToolsConfig() {
+		return [{
+			name: "getBalance",
+			description: "Get wallet balance (defaults to your own)",
+			input_schema: {
+				type: "object",
+				properties: {
+					address: {
+						type: "string",
+						description: "Wallet address (optional)"
+					}
+				},
+				required: []
+			}
+		}, {
+			name: "prepareSendTransaction",
+			description: "Prepare transaction to send ETH",
+			input_schema: {
+				type: "object",
+				properties: {
+					to: {
+						type: "string",
+						description: "Recipient address"
+					},
+					valueInEth: {
+						type: "string",
+						description: "Amount of ETH to send (in 0.00 format)"
+					}
+				},
+				required: ["to", "valueInEth"]
+			}
+		}, {
+			name: "createWallet",
+			description: "Creates a new wallet or returns existing one",
+			input_schema: {
+				type: "object",
+				properties: {},
+				required: []
+			}
+		}];
+	}
+
+	async handleToolsFlow(message, toolCalls) {
+		const results = await this.executeTools(toolCalls);
+		return this.handleToolResponse(results);
+	}
+
+	handleTextResponse(response) {
+		const textBlocks = response.content.filter(block => block.type === 'text');
+		if (textBlocks.length > 0) {
+			const responseText = textBlocks[0].text;
+			printChat(responseText, 'assistant');
+			return responseText;
+		}
+		throw new Error('No valid response content found');
 	}
 } 
