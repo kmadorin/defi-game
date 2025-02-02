@@ -1,27 +1,21 @@
 {
   "name": "defi-game",
   "version": "1.0.0",
-  "description": "DeFi Portfolio Manager with AI Assistant",
   "type": "module",
-  "main": "src/chat.js",
+  "main": "index.js",
   "scripts": {
-    "prestart": "mkdir -p logs",
-    "start": "node src/chat.js 2> logs/errors.txt"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [
-    "defi",
-    "ethereum",
-    "ai",
-    "portfolio",
-    "management"
-  ],
-  "author": "Kirill Madorin",
+  "keywords": [],
+  "author": "",
   "license": "ISC",
+  "description": "",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.18.0",
-    "chalk": "^5.3.0",
-    "dotenv": "^16.4.5",
-    "inquirer": "^9.2.16",
-    "viem": "^2.7.16"
+    "@coinbase/agentkit": "^0.1.0",
+    "@coinbase/agentkit-langchain": "^0.1.0",
+    "@langchain/langgraph": "^0.2.44",
+    "@langchain/openai": "^0.4.2",
+    "dotenv": "^16.4.7",
+    "inquirer": "^12.3.3"
   }
 }

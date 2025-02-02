@@ -1,38 +1,40 @@
-Gamified DEFI Portfolio Management chat app
+DEFI Copilot
 
-User stories:
+One-liner:
+DEFI Copilot is a Gamified DEFI Portfolio Management chat app
 
-Новичок в DEFI:
+Overview:
 
-- Как пользователь я хочу узнать как работает DEFI, узнать основы в геймифицированном формате
-- Как пользователь я хочу завести кошелек, которым будет управлять управляющий агент (портфолио менеджер)
-- Как пользователь я хочу поговорить с управляющим и установить свои финансовые цели и разбивать их на задачи
-- Как пользователь я хочу трекать прогресс по целям и узнавать ежедневный отчет от менеджера
-	- Сколько заработал, 
-- Как пользователь я хочу быть в курсе последних новостей и стратегий в DEFI 
-  - Управлящий должен собирать информацию из разных источников и генерировать отчет каждую неделю
-- Как пользователь я не хочу терять деньги, хочу знать о рисках и возможных проблемах 
+DEFI Copilot allows to onboard user into DEFI in a gamified way. In the beginning the user gets a chat with his personal portfolio manager (implemented as an AI agent), which onboards him to the app, learns user's goals and motivation, stores it in memory. He also should learn that two modes are available and choose from which to start: 
 
-Функции менеджера:
-Должен чем-то удивить и зацепить в начале: Например, спросить сколько вы хотите заработать в DEFI?
-Заслужить доверие пользователя и установить контакт
-Подстроить стиль общения под пользователя
-General knowledge про DEFI, ответы на вопросы пользователя
-Нанимать специализированных агентов для выполнения задач/получения информации
-Должен иметь долговременную память с информацией о пользователе, к которой сможет обращаться
+1. Onboarding mode. Helps the user to learn about DEFI and different protocols, without any risks. Instead of mainnet, the user will have testnet account or an account in the forked network. Also he'll be able to topup his wallet via faucet. For working with forked network we will use Tenderly Virtual Testnets.
 
-Специализированные агенты:
+2. Investment mode. The user can start investing his own money in DEFI protocols. All operations are on mainnet and involve real money. In this case a user can top up a wallet via Coinbase onramp with credit card or he can top up his wallet from another wallet with a sum he founds comfortable to risk or invest.
 
-Агент для отправки транзакций:
+A user chooses the mode during onboarding dialogue with Portfolio Manager agent.
 
-Простой агента, который будет генерировать объекты транзакций по текстовой команде на любом языке.
+The mode is counted in portfolio manager's system prompt and and it answers to the user based on the mode.
 
-Примеры команд: send 0.0001 ETH to 0x9e0f0d83dD880240e3506A7Ac4CE82500b2bD92B on Base отправь 0.0001 ETH на адрес 0x9e0f0d83dD880240e3506A7Ac4CE82500b2bD92B on Arbitrum
+After choosing the mode, Portfolio Manager suggests a user to create a wallet, then base username, and ways to top up a wallet.
 
-Если сеть не указана, то портфолио менеджер должен уточнить у пользователя, на какой сети он хочет отправить транзакцию.
+Then he top ups his wallet via faucet in onboarding mode or via Coinbase onramp/from another wallet in investment mode.
 
-Команды будут отправляться портфолио менеджеру в главном чате игры Портфолио менеджер будет проверять команду на корректность, подыскивать подходящего агента из списка нанятых агентов и перенаправлять их на агента для отправки транзакций, а затем отправлять ответ в чат. Если агент не нанят, то портфолио менеджер должен будет предложить нанять агента, подходящего под команду. Если подходящего агента нет, то портфолио менеджер должен отвеитить на запрос исходя из общих знаний, используя Anthropic API. Список всех агентов будет храниться в отдельном файле
+After that a user can start interact with Portfolio Manager using its tools to learn about DEFI, different protocols, and strategies, etc.
 
-В ответе будет содержаться объект транзакции и результаты симуляции. Для симуляции мы будем использовать метод alchemy_simulateAssetChanges из Alchemy API, который описан здесь: https://docs.alchemy.com/reference/alchemy-simulateassetchanges. Портфолио менеджер должен будет показать результаты симуляции в ответе пользователю и предложить отклонить транзакци, либо отправить ее.
+Also he can ask portfolio manager to help him to choose a protocl/strategy based on his goal and risk tolerance. For example, he might be interested to have the best yield that is possible for USDC in different protocols. Portfolio manager agent will use its tools to find the best options and suggest it to a user.
 
-Для того, чтобы отправлять транзакции нам потребуется кошелек. Нужно сделать так, чтобы при первом запуске игры Portfolio Manager создавал кошелек используя viem. Документаци к viem лежит в @Docs
+Then user chooses one or several and agent prepares a transaction, simulates it and shows to user an outcome of the transaction to make a decision. A user can acceprt it or reject and continue the dialogue. For simulation we will use Alchemy API or Tenderly API.
+
+Also, a user can set regular tasks for Portfolio Manager, for example to send him a daily report about his portfolio, how much he earned, how each strategy performes. For this we will use theGraph or Covalent APIs to get historical blockchain data.
+
+For creating Portfolio Manager agent we will use Coinbase Agentkit framework, which is based on LangChain framework. 
+
+For managing user's wallet we will use Coinbase MPC wallet or Coinbase Smart Wallet.
+
+For interacting with blockchain we will use Coinbase MPC Wallet
+
+
+
+
+
+

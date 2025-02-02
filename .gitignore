@@ -5,18 +5,15 @@ node_modules/
 .env
 
 # Logs
-logs/*.log
+*.log
+npm-debug.log*
 
-# IDE files
+# IDE
 .vscode/
 .idea/
 
-# OS files
-.DS_Store
+# OS
+.DS_Store 
+node_modules
 
-dist/
-.env, .env.*
-transcripts/
-
-# Additional rules
-!.gitkeep
+coinbase_cloud_api_key.json
