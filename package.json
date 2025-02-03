@@ -15,7 +15,10 @@
     "@coinbase/agentkit-langchain": "^0.1.0",
     "@langchain/langgraph": "^0.2.44",
     "@langchain/openai": "^0.4.2",
+    "chalk": "^5.4.1",
     "dotenv": "^16.4.7",
-    "inquirer": "^12.3.3"
+    "fs-extra": "^11.3.0",
+    "inquirer": "^12.3.3",
+    "langchain": "^0.3.15"
   }
 }

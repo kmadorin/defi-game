@@ -5,6 +5,10 @@ import { AgentKit, CdpWalletProvider, walletActionProvider } from '@coinbase/age
 import { getLangChainTools } from '@coinbase/agentkit-langchain';
 import { ChatOpenAI } from '@langchain/openai';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import fs from 'fs';
+
+// Add constant definition at the top of the file
+const WALLET_DATA_FILE = "wallet_data.txt";
 
 const sessionState = {
   username: null,
@@ -41,14 +45,33 @@ async function promptMode() {
 
 async function initializeAgent() {
   try {
-    // Initialize AgentKit
+    // Read existing wallet data if available
+    let walletDataStr = null;
+    if (fs.existsSync(WALLET_DATA_FILE)) {
+      try {
+        walletDataStr = fs.readFileSync(WALLET_DATA_FILE, "utf8");
+      } catch (error) {
+        console.error("⚠️ Error reading wallet data:", error);
+      }
+    }
+
+    // Format the private key correctly
+    const privateKey = process.env.CDP_API_KEY_PRIVATE
+      ?.replace(/\\n/g, '\n')  // Replace literal \n with newlines
+      ?.replace(/["']/g, '');  // Remove any quotes
+
+    // Initialize AgentKit with wallet data
     const config = {
-      apiKeyName: process.env.CDP_API_KEY_NAME,
-      apiKeyPrivate: process.env.CDP_API_KEY_PRIVATE?.replace(/\\n/g, "\n"),
-      networkId: "base-sepolia"
+      apiKeyName: process.env.CDP_API_KEY_NAME?.trim(),
+      apiKeyPrivateKey: privateKey,
+      cdpWalletData: walletDataStr || undefined,
+      networkId: process.env.NETWORK_ID?.trim() || "base-sepolia"
     };
-    
+
+    console.log('🔑 Initializing wallet provider...');
     const walletProvider = await CdpWalletProvider.configureWithWallet(config);
+    
+    console.log('🛠️ Setting up AgentKit...');
     const agentKit = await AgentKit.from({ 
       walletProvider,
       actionProviders: [walletActionProvider()]
@@ -57,6 +80,9 @@ async function initializeAgent() {
     // Setup LangChain agent
     const tools = await getLangChainTools(agentKit);
     const llm = new ChatOpenAI({ model: "gpt-4" });
+
+		const exportedWallet = await walletProvider.exportWallet();
+    fs.writeFileSync(WALLET_DATA_FILE, JSON.stringify(exportedWallet));
     
     return createReactAgent({
       llm,
@@ -71,7 +97,10 @@ async function initializeAgent() {
       `
     });
   } catch (error) {
-    console.error('Failed to initialize agent:', error);
+    console.error('❌ Failed to initialize agent:', error);
+    if (error.response) {
+      console.error('Response details:', error.response.data);
+    }
     throw error;
   }
 }
