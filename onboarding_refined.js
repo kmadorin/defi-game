@@ -151,19 +151,23 @@ class ConversationManager {
     if (this.currentQuestionIndex < this.questions.length) {
       return this.questions[this.currentQuestionIndex].question;
     }
-    // If all questions are answered, proceed to confirmation.
-    return await this.handleConfirmationStage();
+    return this.handleConfirmationStage();
   }
 
   // Processes the user's input and then returns a tailored response including acknowledgments.
   async processUserInput(input) {
     let acknowledgment = '';
 
-    // Handle the introduction stage separately.
+    // Handle confirmation stage separately
+    if (this.currentQuestionIndex >= this.questions.length) {
+      return this.handleConfirmationResponse(input);
+    }
+
+    // Handle the introduction stage
     if (this.currentQuestionIndex === 0) {
       this.userData.username = input.trim();
       acknowledgment = `Thanks ${this.userData.username}! `;
-      this.currentQuestionIndex++; // Move to the next question
+      this.currentQuestionIndex++;
       return acknowledgment + await this.getNextQuestion();
     }
 
@@ -220,6 +224,18 @@ class ConversationManager {
     // Move to the next question.
     this.currentQuestionIndex++;
     return acknowledgment + await this.getNextQuestion();
+  }
+
+  async handleConfirmationResponse(input) {
+    if (input.toLowerCase().startsWith('y')) {
+      await this.saveUserData();
+      return chalk.green('\nThank you for completing the onboarding process!');
+    } else {
+      this.currentQuestionIndex = 0;
+      this.userData = {};
+      return chalk.yellow('\nLet\'s start over to get your information correct.') + 
+             '\n' + chalk.cyan("What should I call you?");
+    }
   }
 
   async handleConfirmationStage() {

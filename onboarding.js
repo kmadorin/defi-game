@@ -137,6 +137,22 @@ const startOnboarding = async () => {
       await saveUserData(userData);
       console.log(chalk.green('\nThank you for completing the onboarding process!'));
       console.log(chalk.cyan("I'll use this information to personalize your DEFI Copilot experience."));
+
+      // Instead of JSON dump:
+      const chat = new ChatOpenAI({
+        modelName: "gpt-4-turbo",
+        temperature: 0.8 // Higher temp for more creative responses
+      });
+
+      const summary = await chat.invoke(
+        `Create friendly summary for ${name} who's ${experience}:
+        - Goals: ${goals}
+        - Risk: ${riskTolerance}
+        - Experience: ${experience}`
+      );
+
+      // Returns natural language like:
+      console.log(chalk.cyan(summary));
     } else {
       console.log(chalk.yellow('\nLet\'s start over to get your information correct.'));
       return startOnboarding();
