@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
     "onboarding": "node onboarding_one_prompt.js",
     "manager": "node index.js"
   },
@@ -18,7 +19,7 @@
     "@langchain/community": "^0.3.28",
     "@langchain/core": "^0.3.37",
     "@langchain/langgraph": "^0.2.44",
-    "@langchain/openai": "^0.0.14",
+    "@langchain/openai": "^0.4.2",
     "chalk": "^5.4.1",
     "dotenv": "^16.4.7",
     "fs-extra": "^11.3.0",
