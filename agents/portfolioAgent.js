@@ -1,17 +1,20 @@
 import { HumanMessage } from "@langchain/core/messages";
-import { AgentKit, CdpWalletProvider, walletActionProvider, cdpApiActionProvider, pythActionProvider, wethActionProvider, morphoActionProvider } from '@coinbase/agentkit';
+import { AgentKit, ViemWalletProvider, walletActionProvider, cdpApiActionProvider, pythActionProvider, wethActionProvider, morphoActionProvider } from '@coinbase/agentkit';
 import { getLangChainTools } from '@coinbase/agentkit-langchain';
 import { ChatOpenAI } from '@langchain/openai';
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import inquirer from 'inquirer';
 import fs from 'fs';
 
-const WALLET_DATA_FILE = "wallet_data.txt";
+ // Viem-related imports for wallet management
+ import { createWalletClient, http } from "viem";
+ import { baseSepolia } from "viem/chains";
+ import { privateKeyToAccount } from "viem/accounts";
 
 // Validate environment variables
 function validateEnvironment() {
 	const missingVars = [];
-	const requiredVars = ["OPENAI_API_KEY", "CDP_API_KEY_NAME", "CDP_API_KEY_PRIVATE"];
+	const requiredVars = ["OPENAI_API_KEY", "PRIVATE_KEY"];
 
 	requiredVars.forEach(varName => {
 		if (!process.env[varName]) {
@@ -36,36 +39,25 @@ export async function initializePortfolioAgent(profile) {
 	try {
 		validateEnvironment();
 
-		// Read existing wallet data if available
-		let walletDataStr = null;
-		if (fs.existsSync(WALLET_DATA_FILE)) {
-			try {
-				walletDataStr = fs.readFileSync(WALLET_DATA_FILE, "utf8");
-			} catch (error) {
-				console.error("⚠️ Error reading wallet data:", error);
-			}
-		}
+		
 
-		// Format the private key correctly
-		const privateKey = process.env.CDP_API_KEY_PRIVATE
-			?.replace(/\\n/g, '\n')
-			?.replace(/["']/g, '');
+		const PRIVATE_KEY = process.env.PRIVATE_KEY
 
-		// Initialize AgentKit with wallet data
-		const config = {
-			apiKeyName: process.env.CDP_API_KEY_NAME?.trim(),
-			apiKeyPrivateKey: privateKey,
-			cdpWalletData: walletDataStr || undefined,
-			networkId: process.env.NETWORK_ID?.trim() || "base-sepolia"
-		};
+		// Initialize viem wallet
+		const account = privateKeyToAccount(
+      PRIVATE_KEY,
+    );
 
-		const walletProvider = await CdpWalletProvider.configureWithWallet(config);
+    const client = createWalletClient({
+      account,
+      chain: baseSepolia,
+      transport: http(),
+    });
+		const walletProvider = new ViemWalletProvider(client);
+
 		const agentKit = await AgentKit.from({
 			walletProvider,
-			actionProviders: [walletActionProvider(), cdpApiActionProvider({
-				apiKeyName: config.apiKeyName,
-				apiKeyPrivateKey: privateKey,
-			}), pythActionProvider(), wethActionProvider(), morphoActionProvider()]
+			actionProviders: [walletActionProvider(), pythActionProvider(), wethActionProvider(), morphoActionProvider()]
 		});
 
 		// Setup LangChain agent
@@ -74,10 +66,6 @@ export async function initializePortfolioAgent(profile) {
 			modelName: "gpt-3.5-turbo",
 			temperature: 0.5
 		});
-
-		// Save wallet data
-		const exportedWallet = await walletProvider.exportWallet();
-		fs.writeFileSync(WALLET_DATA_FILE, JSON.stringify(exportedWallet));
 
 		// Create agent configuration
 		const agentConfig = {
@@ -127,7 +115,6 @@ export async function runPortfolioAgent({ agent, config }) {
 
 	// Show initial welcome message with wallet address
 	try {
-		const walletData = JSON.parse(fs.readFileSync(WALLET_DATA_FILE, 'utf8'));
 		console.log('\n🎉 Welcome to your DeFi Portfolio Manager!');
 		console.log('Your wallet has been created successfully.');
 		console.log(`\n📬 Your wallet address: ${walletData.address}`);
