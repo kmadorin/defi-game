@@ -1,9 +1,10 @@
 import React from 'react';
 import { useEffect } from 'react';
 import { WalletDefault } from '@coinbase/onchainkit/wallet'
-import { useAccount, useBalance, useSwitchChain, useChainId } from 'wagmi'
+import { useAccount, useBalance, useSwitchChain, useWalletClient, useChainId } from 'wagmi'
+import { ViemWalletProvider } from '@coinbase/agentkit'
 import { formatEther } from 'viem'
-import { AgentKit, walletActionProvider, pythActionProvider, wethActionProvider, morphoActionProvider, WalletProvider } from '@coinbase/agentkit'
+import { AgentKit, walletActionProvider, pythActionProvider, wethActionProvider, morphoActionProvider } from '@coinbase/agentkit'
 import { getLangChainTools } from '@coinbase/agentkit-langchain';
 import { ChatOpenAI } from '@langchain/openai';
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
@@ -11,9 +12,6 @@ import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages
 import { StructuredOutputParser } from "langchain/output_parsers";
 import { z } from "zod";
 import { testActionProvider } from './actionProviders/test';
-import { useEthersSigner } from './hooks/useEthersSigner';
-import { EthersWalletProvider } from './walletProviders/ethersWalletProvider';
-import { Signer } from 'ethers';
 
 // Define the exact same Zod schema as CLI version
 const UserProfile = z.object({
@@ -92,14 +90,8 @@ const Chat: React.FC = () => {
 
 	const chainId = useChainId()
 
-	let signer: Signer | undefined;
-	if (chainId) {
-		signer = useEthersSigner({ chainId: chainId });
-	}
-
-	// const response = useConnectorClient()
-	// const { data: walletClient } = response;
-
+	const response = useWalletClient({chainId: chainId})
+	const { data: walletClient } = response;
 
 	const [inputMessage, setInputMessage] = React.useState('');
 	const [messages, setMessages] = React.useState<Array<{ content: string, isUser: boolean }>>([]);
@@ -149,11 +141,11 @@ const Chat: React.FC = () => {
 	// Update the profile change useEffect to handle proper agent switching
 	useEffect(() => {
 		const initializePortfolioManager = async () => {
-			if (!userProfile || !signer) return;
+			if (!userProfile || !walletClient) return;
 
 			try {
 				// Clear previous chat history but keep last message
-				setMessages( _ => [
+				setMessages(prev => [
 					{
 						content: `🎉 Welcome ${userProfile.username}! Your DeFi portfolio manager is ready.`,
 						isUser: false
@@ -161,10 +153,10 @@ const Chat: React.FC = () => {
 				]);
 
 				// Re-initialize agent with fresh config
-				const walletProvider = new EthersWalletProvider(signer);
+				const walletProvider = new ViemWalletProvider(walletClient);
 				const agentKit = await AgentKit.from({
 					walletProvider,
-					actionProviders: [walletActionProvider(), pythActionProvider(), wethActionProvider()]
+					actionProviders: [walletActionProvider(), pythActionProvider(), wethActionProvider(), morphoActionProvider(), testActionProvider()]
 				});
 
 				const tools = await getLangChainTools(agentKit);
@@ -199,7 +191,7 @@ const Chat: React.FC = () => {
 		};
 
 		initializePortfolioManager();
-	}, [userProfile, signer]);
+	}, [userProfile, walletClient]);
 
 	const handleSend = async () => {
 		const trimmedInput = inputMessage.trim();
@@ -227,26 +219,14 @@ const Chat: React.FC = () => {
 					}
 				);
 
+				// Initialize an empty message for the AI response
 				setMessages(prev => [...prev, { content: '', isUser: false }]);
 
 				let fullResponse = '';
 				for await (const chunk of stream) {
 					if ("agent" in chunk) {
-						// Check if it's a thought or final response
-						if (chunk.agent.thought) {
-							fullResponse += `\n💭 Thought: ${chunk.agent.thought}\n`;
-						}
-						if (chunk.agent.messages?.length > 0) {
-							fullResponse += chunk.agent.messages[0].content;
-						}
-						setMessages(prev => [
-							...prev.slice(0, -1),
-							{ content: fullResponse, isUser: false }
-						]);
-					}
-					if ("tool" in chunk) {
-						const toolInfo = `\n\n🔧 Tool: ${chunk.tool.name}\n📥 Input: ${JSON.stringify(chunk.tool.input, null, 2)}\n📤 Output: ${JSON.stringify(chunk.tool.output, null, 2)}`;
-						fullResponse += toolInfo;
+						fullResponse += chunk.agent.messages[0].content;
+						// Update the last message with accumulated response
 						setMessages(prev => [
 							...prev.slice(0, -1),
 							{ content: fullResponse, isUser: false }
@@ -341,7 +321,7 @@ const Chat: React.FC = () => {
 			<div className="flex-1 overflow-y-auto p-4 space-y-4">
 				{messages.map((msg, i) => (
 					<div key={i} className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}>
-						<div className={`${msg.isUser ? 'bg-blue-500' : 'bg-white'} rounded-lg p-3 max-w-lg shadow`}>
+						<div className={`${msg.isUser ? 'bg-blue-500' : 'bg-white'} rounded-lg p-3 max-w-xs shadow`}>
 							<p className={msg.isUser ? 'text-white' : 'text-gray-800'}>{msg.content}</p>
 						</div>
 					</div>
