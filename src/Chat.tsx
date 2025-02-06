@@ -3,10 +3,10 @@ import { useEffect } from 'react';
 import { WalletDefault } from '@coinbase/onchainkit/wallet'
 import { useAccount, useBalance, useSwitchChain, createConfig, http } from 'wagmi'
 import { ViemWalletProvider } from '@coinbase/agentkit'
-import { baseSepolia } from 'wagmi/chains'
 import { formatEther } from 'viem'
 import { useConnectorClient } from 'wagmi'
 import { AgentKit, walletActionProvider, pythActionProvider, wethActionProvider, morphoActionProvider } from '@coinbase/agentkit'
+import { WalletClient } from 'viem'
  
 const Chat: React.FC = () => {
 	const { address } = useAccount()
@@ -15,14 +15,7 @@ const Chat: React.FC = () => {
 		address,
 	})
 
-	const config = createConfig({ 
-		chains: [baseSepolia], 
-		transports: { 
-			[baseSepolia.id]: http(), 
-		}, 
-	})
-
-	const response = useConnectorClient({ config })
+	const response = useConnectorClient()
 	console.log("response:", response);
 	const {data: walletClient} = response;
 
@@ -31,16 +24,26 @@ const Chat: React.FC = () => {
 			if (walletClient) {
 				// const walletProvider = new ViemWalletProvider(walletClient);
 				console.log("walletClient:", walletClient);
-				
-				// const [address] = walletClient.requestAddresses();
-				// console.log("address:", address);
-				// console.log("walletProvider:", walletProvider);
-				// const agentKit = await AgentKit.from({
-				// 	walletProvider,
-				// 	actionProviders: [walletActionProvider(), pythActionProvider(), wethActionProvider(), morphoActionProvider()]
-				// });
 
-				// console.log("agentKit:", agentKit);
+				const res = await walletClient.request({
+					method: "eth_sendTransaction",
+					params: [
+						{
+							from: address,
+							to: "0x0000000000000000000000000000000000000000",
+							value: '0x1000',
+						}
+					]
+				});
+				console.log("res:", res);
+				
+				const walletProvider = new ViemWalletProvider(walletClient as unknown as WalletClient);
+				const agentKit = await AgentKit.from({
+					walletProvider,
+					actionProviders: [walletActionProvider(), pythActionProvider(), wethActionProvider(), morphoActionProvider()]
+				});
+
+				console.log("agentKit:", agentKit);
 			}
 		}
 
