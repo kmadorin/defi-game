@@ -1,10 +1,5 @@
 import { z } from "zod";
 
-export const TestCalculationSchema = z.object({
-  // a: z.number().describe("First number"),
-  // b: z.number().describe("Second number"),
-}); 
-
 /**
  * Input schema for native transfer action.
  */
@@ -15,3 +10,9 @@ export const NativeTransferSchema = z
   })
   .strip()
   .describe("Instructions for transferring native tokens");
+
+	/**
+ * Schema for the get_wallet_details action.
+ * This action doesn't require any input parameters, so we use an empty object schema.
+ */
+export const GetWalletDetailsSchema = z.object({});

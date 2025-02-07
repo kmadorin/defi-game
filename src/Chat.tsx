@@ -2,18 +2,17 @@ import React from 'react';
 import { useEffect } from 'react';
 import { WalletDefault } from '@coinbase/onchainkit/wallet'
 import { useAccount, useBalance, useSwitchChain, useWalletClient, useChainId } from 'wagmi'
-import { useCapabilities } from 'wagmi/experimental'
 import { ViemWalletProvider } from '@coinbase/agentkit'
 import { formatEther } from 'viem'
-import { AgentKit, walletActionProvider, pythActionProvider, wethActionProvider, morphoActionProvider } from '@coinbase/agentkit'
+import { AgentKit, pythActionProvider, wethActionProvider } from '@coinbase/agentkit'
 import { getLangChainTools } from '@coinbase/agentkit-langchain';
 import { ChatOpenAI } from '@langchain/openai';
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import { StructuredOutputParser } from "langchain/output_parsers";
 import { z } from "zod";
-import { testActionProvider } from './actionProviders/test';
-
+import { walletActionProvider } from './actionProviders/walletActionProvider';
+import { morphoActionProvider } from './actionProviders/morphoActionProvider';
 // Define the exact same Zod schema as CLI version
 const UserProfile = z.object({
 	username: z.string().describe("The client's name"),
@@ -90,11 +89,7 @@ const Chat: React.FC = () => {
 	})
 
 	const chainId = useChainId()
-
-	const { data: capabilities } = useCapabilities()
 	
-	console.log("capabilities", capabilities)
-
 	const response = useWalletClient({chainId: chainId})
 	const { data: walletClient } = response;
 
@@ -162,7 +157,7 @@ const Chat: React.FC = () => {
 				const walletProvider = new ViemWalletProvider(walletClient);
 				const agentKit = await AgentKit.from({
 					walletProvider,
-					actionProviders: [pythActionProvider(), wethActionProvider(), morphoActionProvider(), testActionProvider(walletProvider)]
+					actionProviders: [pythActionProvider(), wethActionProvider(), morphoActionProvider(walletProvider), walletActionProvider(walletProvider)]
 				});
 
 				const tools = await getLangChainTools(agentKit);
