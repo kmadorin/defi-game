@@ -2,6 +2,7 @@ import React from 'react';
 import { useEffect } from 'react';
 import { WalletDefault } from '@coinbase/onchainkit/wallet'
 import { useAccount, useBalance, useSwitchChain, useWalletClient, useChainId } from 'wagmi'
+import { useCapabilities } from 'wagmi/experimental'
 import { ViemWalletProvider } from '@coinbase/agentkit'
 import { formatEther } from 'viem'
 import { AgentKit, walletActionProvider, pythActionProvider, wethActionProvider, morphoActionProvider } from '@coinbase/agentkit'
@@ -90,8 +91,13 @@ const Chat: React.FC = () => {
 
 	const chainId = useChainId()
 
+	const { data: capabilities } = useCapabilities()
+	
+	console.log("capabilities", capabilities)
+
 	const response = useWalletClient({chainId: chainId})
 	const { data: walletClient } = response;
+
 
 	const [inputMessage, setInputMessage] = React.useState('');
 	const [messages, setMessages] = React.useState<Array<{ content: string, isUser: boolean }>>([]);
@@ -156,7 +162,7 @@ const Chat: React.FC = () => {
 				const walletProvider = new ViemWalletProvider(walletClient);
 				const agentKit = await AgentKit.from({
 					walletProvider,
-					actionProviders: [walletActionProvider(), pythActionProvider(), wethActionProvider(), morphoActionProvider(), testActionProvider()]
+					actionProviders: [pythActionProvider(), wethActionProvider(), morphoActionProvider(), testActionProvider(walletProvider)]
 				});
 
 				const tools = await getLangChainTools(agentKit);
@@ -224,6 +230,7 @@ const Chat: React.FC = () => {
 
 				let fullResponse = '';
 				for await (const chunk of stream) {
+					console.log("chunk", chunk);
 					if ("agent" in chunk) {
 						fullResponse += chunk.agent.messages[0].content;
 						// Update the last message with accumulated response
