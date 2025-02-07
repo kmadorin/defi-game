@@ -25,7 +25,7 @@ export function getConfig() {
 		connectors: [
 			coinbaseWallet({
 				appName: "OnchainKit",
-				preference: 'smartWalletOnly',
+				preference: 'eoaOnly',
 				version: '4',
 			}),
 		],

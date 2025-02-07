@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@aave/contract-helpers": "^1.31.1",
+    "@aave/math-utils": "^1.31.1",
+    "@bgd-labs/aave-address-book": "^4.10.0",
     "@coinbase/agentkit-langchain": "^0.1.0",
     "@coinbase/onchainkit": "^0.36.9",
     "@langchain/core": "^0.3.38",
@@ -24,7 +27,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "decimal.js": "^10.5.0",
-    "ethers": "^6.13.5",
     "langchain": "^0.3.15",
     "lucide-react": "^0.474.0",
     "react": "^19.0.0",
