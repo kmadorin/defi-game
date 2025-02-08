@@ -17,5 +17,8 @@ export default defineConfig({
   },
   define: {
     'crypto.randomUUID': 'crypto.randomUUID || (() => Math.random().toString(36).substring(2))'
+  },
+  server: {
+    allowedHosts: ['deffi.flowlyapp.live']
   }
 })
