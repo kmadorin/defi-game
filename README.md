@@ -1,50 +1,90 @@
-# React + TypeScript + Vite
+# DEFI Copilot
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A gamified DEFI Portfolio Management chat app that helps users navigate the world of DeFi through an AI-powered personal portfolio manager.
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+DEFI Copilot offers two primary modes:
 
-## Expanding the ESLint configuration
+1. **Onboarding Mode**: Risk-free learning environment using testnet/forked networks
+   - Practice DeFi operations without real money
+   - Access to testnet faucets
+   - Safe environment to learn protocols and strategies
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+2. **Investment Mode**: Real mainnet operations with actual funds
+   - Direct integration with Coinbase onramp
+   - Real-time portfolio management
+   - Live protocol interactions
 
-- Configure the top-level `parserOptions` property like this:
+## Features
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+- 🤖 AI Portfolio Manager powered by LangChain and Coinbase Agentkit
+- 🎮 Gamified learning experience
+- 💼 Smart portfolio tracking and management
+- 📊 Real-time DeFi protocol interactions
+- 🔒 Secure wallet integration (Coinbase Smart Wallet)
+- 💳 Fiat onramp via Coinbase Offramp
+
+[Companion bot](https://github.com/mr-procrastinator/defi-idea-analyse)
+- Defi strategies explanation agent 
+- 📱 Automated daily reports aggregating insights from DeFi-focused Telegram channels and on-chain data
+- 🔔 Configurable alerts for important DeFi events and opportunities
+
+TODO:
+- 📈 Historical performance tracking via TheGraph/Covalent
+- 🔄 Transaction simulation via Alchemy/Tenderly
+- 🌐 Support for multiple DeFi protocols
+
+## Tech Stack
+
+- **Frontend**: React + Vite
+- **Smart Contract Integration**: wagmi
+- **Wallet**: Coinbase MPC Wallet/Smart Wallet
+- **AI Framework**: LangChain + Coinbase Agentkit
+- **Blockchain Data**: TheGraph, Covalent
+- **Transaction Simulation**: Alchemy API,
+- **Network Support**: Base Mainnet, Base Sepolia Testnet,
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v16+)
+- Git
+- Yarn/npm
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone [repository-url]
+cd defi-game
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
-
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+2. Install dependencies:
+```bash
+yarn install
+# or
+npm install
 ```
+
+3. Create `.env` file:
+```bash
+cp .env.example .env
+```
+
+4. Fill in required environment variables:
+```bash
+cp .env.example .env
+```
+
+5. Start the development server:
+```bash
+yarn dev
+# or
+npm run dev
+```
+
+## License
+
+This project is licensed under the MIT License
