@@ -1,10 +1,10 @@
 "use client"
 import { useState, useEffect } from "react"
-import { Message } from "@/components/chat/message"
+import { Message } from "@/components/chat/Message"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Send } from "lucide-react"
-import { useAccount, useBalance, useWalletClient, useChainId } from 'wagmi'
+import { useAccount, useWalletClient, useChainId } from 'wagmi'
 import { ViemWalletProvider } from '@coinbase/agentkit'
 import { AgentKit, pythActionProvider, wethActionProvider } from '@coinbase/agentkit'
 import { getLangChainTools } from '@coinbase/agentkit-langchain'
@@ -15,6 +15,10 @@ import { StructuredOutputParser } from "langchain/output_parsers"
 import { z } from "zod"
 import { walletActionProvider } from '../../actionProviders/walletActionProvider'
 import { morphoActionProvider } from '../../actionProviders/morphoActionProvider'
+
+type OnboardingAgent = ChatOpenAI;
+type PortfolioAgent = ReturnType<typeof createReactAgent>;
+type Agent = OnboardingAgent | PortfolioAgent | null;
 
 // Define UserProfile schema
 const UserProfile = z.object({
@@ -86,7 +90,7 @@ export function ChatInterface() {
 
   const [inputMessage, setInputMessage] = useState('')
   const [messages, setMessages] = useState<Array<{ content: string, isBot: boolean, actions?: string[] }>>([])
-  const [agent, setAgent] = useState<any>(null)
+  const [agent, setAgent] = useState<Agent>(null)
   const [agentConfig] = useState({
     configurable: {
       thread_id: `chat-${Date.now()}`
@@ -133,18 +137,40 @@ export function ChatInterface() {
       if (!userProfile || !walletClient) return;
 
       try {
-        setMessages(prev => [{
+        setMessages(() => [{
           content: `🎉 Welcome ${userProfile.username}! Your DeFi portfolio manager is ready.`,
           isBot: true
         }]);
 
         const walletProvider = new ViemWalletProvider(walletClient);
+        
+        // Verify wallet provider is properly initialized
+        if (!walletProvider || !walletProvider.getAddress()) {
+          throw new Error('Failed to initialize wallet provider');
+        }
+
         const agentKit = await AgentKit.from({
           walletProvider,
-          actionProviders: [pythActionProvider(), wethActionProvider(), morphoActionProvider(walletProvider), walletActionProvider(walletProvider)]
+          actionProviders: [
+            pythActionProvider(), 
+            wethActionProvider(), 
+            morphoActionProvider(walletProvider), 
+            walletActionProvider(walletProvider)
+          ]
         });
 
+        // Verify agent kit initialization
+        if (!agentKit) {
+          throw new Error('Failed to initialize agent kit');
+        }
+
         const tools = await getLangChainTools(agentKit);
+        
+        // Verify tools initialization
+        if (!tools || tools.length === 0) {
+          throw new Error('Failed to initialize agent tools');
+        }
+
         const model = createChatModel("gpt-3.5-turbo", 0.5);
 
         const reactAgent = createReactAgent({
@@ -152,6 +178,22 @@ export function ChatInterface() {
           tools,
           messageModifier: PORTFOLIO_SYSTEM_PROMPT
         });
+
+        // Verify agent creation
+        if (!reactAgent) {
+          throw new Error('Failed to create portfolio agent');
+        }
+
+        // Test agent capabilities
+        try {
+          await reactAgent.stream(
+            { messages: [new HumanMessage("test")] },
+            { configurable: { thread_id: agentConfig.configurable.thread_id } }
+          );
+        } catch (error) {
+          console.error('Agent test failed:', error);
+          throw new Error('Portfolio agent validation failed');
+        }
 
         setAgent(() => reactAgent);
         setCurrentAgent('portfolio');
@@ -164,17 +206,24 @@ export function ChatInterface() {
           }
         ]);
 
-      } catch (error) {
+      } catch (error: Error | unknown) {
         console.error('Portfolio init failed:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         setMessages(prev => [
           ...prev,
-          { content: 'Failed to initialize portfolio manager', isBot: true }
+          { 
+            content: `Failed to initialize portfolio manager: ${errorMessage}. Please try again or contact support.`, 
+            isBot: true 
+          }
         ]);
+        // Reset state on failure
+        setAgent(null);
+        setCurrentAgent('onboarding');
       }
     };
 
     initializePortfolioManager();
-  }, [userProfile, walletClient]);
+  }, [userProfile, walletClient, agentConfig.configurable.thread_id]);
 
   const handleSend = async () => {
     const trimmedInput = inputMessage.trim();
@@ -188,8 +237,9 @@ export function ChatInterface() {
     setInputMessage('');
 
     try {
-      if (currentAgent === 'portfolio') {
-        const stream = await agent.stream(
+      if (currentAgent === 'portfolio' && 'stream' in agent) {
+        const portfolioAgent = agent as PortfolioAgent;
+        const stream = await portfolioAgent.stream(
           { messages: [new HumanMessage(trimmedInput)] },
           {
             configurable: {
@@ -205,26 +255,47 @@ export function ChatInterface() {
         let fullResponse = '';
         for await (const chunk of stream) {
           if ("agent" in chunk) {
-            fullResponse += chunk.agent.messages[0].content;
+            const content = typeof chunk.agent.messages[0].content === 'string' 
+              ? chunk.agent.messages[0].content 
+              : '';
+            fullResponse += content;
             setMessages(prev => [
               ...prev.slice(0, -1),
               { content: fullResponse, isBot: true }
             ]);
+          } else if ("tools" in chunk) {
+            // Handle tool responses
+            const toolContent = typeof chunk.tools.messages[0].content === 'string'
+              ? chunk.tools.messages[0].content
+              : '';
+            if (toolContent) {
+              setMessages(prev => [
+                ...prev,
+                { content: toolContent, isBot: true, actions: ['tool_response'] }
+              ]);
+            }
           }
         }
       } else {
-        const response = await agent.invoke(updatedAgentMessages);
-        const aiMsgItem = new AIMessage(response.content);
+        const onboardingAgent = agent as OnboardingAgent;
+        const response = await onboardingAgent.invoke(updatedAgentMessages);
+        const responseContent = typeof response.content === 'string' 
+          ? response.content 
+          : Array.isArray(response.content) && response.content[0]?.type === 'text' 
+            ? response.content[0].text 
+            : '';
+            
+        const aiMsgItem = new AIMessage(responseContent);
         setAgentMessages((prev) => [...prev, aiMsgItem]);
         setMessages((prev) => [
           ...prev,
-          { content: response.content, isBot: true }
+          { content: responseContent, isBot: true }
         ]);
 
         if (trimmedInput.toUpperCase() === 'CREATE_WALLET') {
           try {
             const formatInstructions = parser.getFormatInstructions();
-            const structuredResponse = await agent.invoke([
+            const structuredResponse = await onboardingAgent.invoke([
               ...agentMessages,
               new HumanMessage(
                 "Based on our conversation, please provide a JSON summary of my profile following these instructions:\n" +
@@ -232,14 +303,13 @@ export function ChatInterface() {
               )
             ]);
 
-            const contentString = Array.isArray(structuredResponse.content)
-              ? structuredResponse.content[0].type === 'text'
+            const contentString = typeof structuredResponse.content === 'string'
+              ? structuredResponse.content
+              : Array.isArray(structuredResponse.content) && structuredResponse.content[0]?.type === 'text'
                 ? structuredResponse.content[0].text
-                : ''
-              : structuredResponse.content;
+                : '';
 
             const parsed = await parser.parse(contentString);
-
             localStorage.setItem(MEMORY_FILE, JSON.stringify(parsed));
             setUserProfile(parsed);
 
@@ -248,8 +318,7 @@ export function ChatInterface() {
               content: "🚀 Configuring your portfolio manager...",
               isBot: true
             }]);
-
-          } catch (error) {
+          } catch (error: Error | unknown) {
             console.error('Profile extraction failed:', error);
             const formatInstructions = parser.getFormatInstructions();
             setMessages(prev => [
@@ -262,11 +331,12 @@ export function ChatInterface() {
           }
         }
       }
-    } catch (error) {
+    } catch (error: Error | unknown) {
       console.error('Agent error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error processing request';
       setMessages((prev) => [
         ...prev,
-        { content: 'Error processing request', isBot: true }
+        { content: errorMessage, isBot: true }
       ]);
     }
   };

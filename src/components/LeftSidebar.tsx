@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { useSidebar } from "@/providers/sidebar-provider"
+import { useSidebar } from "@/providers/hooks/use-sidebar"
 import { cn } from "@/lib/utils"
 import { WalletDefault } from '@coinbase/onchainkit/wallet'
 import { useAccount, useBalance, useSwitchChain } from 'wagmi'

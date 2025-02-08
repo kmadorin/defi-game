@@ -1,22 +1,11 @@
-import { createContext, useContext, useState } from "react"
-
-interface SidebarContextType {
-  leftSidebarOpen: boolean
-  rightSidebarOpen: boolean
-  toggleLeftSidebar: () => void
-  toggleRightSidebar: () => void
-}
-
-const SidebarContext = createContext<SidebarContextType | undefined>(undefined)
+import { useState } from "react"
+import { SidebarContext } from "./context/sidebar-context"
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
 
-  const toggleLeftSidebar = () => {
-    console.log("Toggling left sidebar")
-    setLeftSidebarOpen((prev) => !prev)
-  }
+  const toggleLeftSidebar = () => setLeftSidebarOpen((prev) => !prev)
   const toggleRightSidebar = () => setRightSidebarOpen((prev) => !prev)
 
   return (
@@ -31,11 +20,5 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
       {children}
     </SidebarContext.Provider>
   )
-}
-
-export function useSidebar() {
-  const context = useContext(SidebarContext)
-  if (!context) throw new Error("useSidebar must be used within SidebarProvider")
-  return context
 }
 

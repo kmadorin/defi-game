@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Menu } from "lucide-react"
-import { useSidebar } from "@/providers/sidebar-provider"
+import { useSidebar } from "@/providers/hooks/use-sidebar"
 
 export function MobileNav() {
   const { toggleLeftSidebar, toggleRightSidebar } = useSidebar()

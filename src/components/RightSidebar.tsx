@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { PlusCircle } from "lucide-react"
-import { useSidebar } from "@/providers/sidebar-provider"
+import { useSidebar } from "@/providers/hooks/use-sidebar"
 import { cn } from "@/lib/utils"
 import type React from "react" // Added import for React
 

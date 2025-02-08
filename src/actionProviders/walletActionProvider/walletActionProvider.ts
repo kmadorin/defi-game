@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ActionProvider, Action, Network } from "@coinbase/agentkit";
+import { ActionProvider, Action } from "@coinbase/agentkit";
 import { NativeTransferSchema, GetWalletDetailsSchema } from "./schemas";
 import { EvmWalletProvider } from "@coinbase/agentkit";
 import { parseEther } from "viem";
@@ -19,7 +19,7 @@ export class WalletActionProvider extends ActionProvider<EvmWalletProvider> {
 	/**
 	 * Perform a simple calculation.
 	 */
-	async getWalletDetails(args: z.infer<typeof GetWalletDetailsSchema>): Promise<string> {
+	async getWalletDetails(): Promise<string> {
 		try {
 			const walletProvider = this.walletProvider;
 			const address = walletProvider.getAddress();
@@ -79,12 +79,12 @@ export class WalletActionProvider extends ActionProvider<EvmWalletProvider> {
     - Native token balance
     - Wallet provider name`,
 				schema: GetWalletDetailsSchema,
-				invoke: (args) => this.getWalletDetails(args),
+				invoke: () => this.getWalletDetails(),
 			},
 		];
 	}
 
-	supportsNetwork(_: Network): boolean {
+	supportsNetwork(): boolean {
 		// This test provider supports all networks
 		return true;
 	}
