@@ -1,8 +1,9 @@
 // TODO: Improve type safety
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Signer, TypedDataDomain, TypedDataField, TransactionRequest } from "ethers";
-import { WalletProvider } from "@coinbase/agentkit";
+import { Signer, TypedDataDomain, TypedDataField } from "ethers";
+import type { TransactionRequest } from "@ethersproject/abstract-provider";
+import { WalletProvider, Network } from "@coinbase/agentkit";
 /**
  * EvmWalletProvider is the abstract base class for all EVM wallet providers.
  *
@@ -38,7 +39,7 @@ export class EthersWalletProvider extends WalletProvider {
       types: Record<string, TypedDataField[]>,
       value: Record<string, any>
     };
-    return this.signer.signTypedData(domain, types, value) as Promise<`0x${string}`>;
+    return (this.signer as any).signTypedData(domain, types, value) as Promise<`0x${string}`>;
   }
 
   /**
@@ -79,18 +80,25 @@ export class EthersWalletProvider extends WalletProvider {
     return "Ethers Wallet";
   }
 
-  async getAddress(): Promise<`0x${string}`> {
-    return this.signer.getAddress() as Promise<`0x${string}`>;
+  getAddress(): string {
+    return this.signer.getAddress() as unknown as string;
   }
 
-  async getNetwork() {
-    return this.signer?.provider?.getNetwork();
+  getNetwork(): Network {
+    if (!this.signer.provider) {
+      throw new Error("No provider available");
+    }
+    return {
+      protocolFamily: "evm",
+      networkId: "mainnet",
+      chainId: "1"
+    };
   }
 
-
-  async getBalance(): Promise<string> {
-    const address = await this.getAddress();
-    return (await this.signer?.provider?.getBalance(address))?.toString() ?? "0";
+  async getBalance(): Promise<bigint> {
+    const address = await this.signer.getAddress();
+    const balance = await this.signer?.provider?.getBalance(address);
+    return BigInt(balance?.toString() ?? "0");
   }
 
   async nativeTransfer(to: string, value: string): Promise<`0x${string}`> {

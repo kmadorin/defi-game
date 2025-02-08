@@ -66,10 +66,9 @@ export class MorphoActionProvider extends ActionProvider<EvmWalletProvider> {
 
 			console.log('receipt', receipt)
 
-			return `Deposited ${args.assets} to Morpho Vault ${args.vaultAddress} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt, (key, value) =>
+			return `Deposited ${args.assets} to Morpho Vault ${args.vaultAddress} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt, (_, value) =>
 				typeof value === 'bigint' ? value.toString() : value
-			)
-				}`;
+			)}`;
 		} catch (error) {
 			console.log('error', error)
 			return `Error depositing to Morpho Vault: ${error}`;
@@ -104,7 +103,7 @@ export class MorphoActionProvider extends ActionProvider<EvmWalletProvider> {
 
 			const receipt = await wallet.waitForTransactionReceipt(txHash);
 
-			return `Deposited ${args.assets} to Morpho Vault ${args.vaultAddress} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt, (key, value) =>
+			return `Deposited ${args.assets} to Morpho Vault ${args.vaultAddress} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt, (_, value) =>
 				typeof value === 'bigint' ? value.toString() : value
 			)}`;
 		} catch (error) {
