@@ -1,9 +1,15 @@
 import { Button } from "@/components/ui/button"
 import { useSidebar } from "@/providers/sidebar-provider"
 import { cn } from "@/lib/utils"
+import { WalletDefault } from '@coinbase/onchainkit/wallet'
+import { useAccount, useBalance, useSwitchChain } from 'wagmi'
+import { formatEther } from 'viem'
 
 export function LeftSidebar() {
   const { leftSidebarOpen } = useSidebar()
+  const { address } = useAccount()
+  const { data: balance } = useBalance({ address })
+  const { chains, switchChain } = useSwitchChain()
 
   return (
     <aside
@@ -24,8 +30,26 @@ export function LeftSidebar() {
         </div>
 
         <div>
-          <div className="text-3xl font-bold tracking-tight">15,657.52 USDC</div>
-          <div className="font-mono text-xs text-muted-foreground mt-1">0x1234...5678</div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {chains.map((chain) => (
+              <Button 
+                key={chain.id} 
+                onClick={() => switchChain({ chainId: chain.id })}
+                variant="outline"
+                size="sm"
+                className="text-xs h-8"
+              >
+                {chain.name}
+              </Button>
+            ))}
+          </div>
+          <WalletDefault />
+          <div className="text-3xl font-bold tracking-tight mt-4">
+            {formatEther(balance?.value ?? 0n)} {balance?.symbol ?? 'USDC'}
+          </div>
+          <div className="font-mono text-xs text-muted-foreground mt-1">
+            {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '0x1234...5678'}
+          </div>
           <Button className="mt-4 w-24 bg-black hover:bg-black/90 text-white" variant="default">
             TOP UP
           </Button>
