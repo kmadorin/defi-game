@@ -60,7 +60,7 @@ export function LeftSidebar() {
             <h3 className="text-xxs font-semibold tracking-wide mb-4">DAILY PORTFOLIO REPORT</h3>
             <div>
               <div className="text-xxs text-muted-foreground tracking-wide">BALANCE CHANGE</div>
-              <div className="text-success">+$120.50 (2.4%)</div>
+              <div className="text-success">+$1 (2.4%)</div>
             </div>
           </div>
 
@@ -68,11 +68,11 @@ export function LeftSidebar() {
             <h3 className="text-xxs font-semibold tracking-wide mb-4">ACTIVE STRATEGIES</h3>
             <div className="flex gap-2 flex-wrap">
               <Button variant="outline" size="sm" className="text-xs h-8">
-                DeFi Yield Farming
+                Morpho USDC Vault
               </Button>
-              <Button variant="outline" size="sm" className="text-xs h-8">
+              {/* <Button variant="outline" size="sm" className="text-xs h-8">
                 NFT Flipping
-              </Button>
+              </Button> */}
             </div>
           </div>
 
@@ -80,23 +80,23 @@ export function LeftSidebar() {
             <h3 className="text-xxs font-semibold tracking-wide mb-4">TOP PERFORMERS</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>ETH/USDC LP</span>
+                <span>USDC Morpho Vault</span>
                 <span className="text-success">+5.2%</span>
               </div>
-              <div className="flex justify-between">
+              {/* <div className="flex justify-between">
                 <span>BORED APE #1234</span>
                 <span className="text-success">+12.0%</span>
               </div>
               <div className="flex justify-between">
                 <span>BTC/ETH ARBITRAGE</span>
                 <span className="text-success">+3.1%</span>
-              </div>
+              </div> */}
             </div>
           </div>
 
           <div>
             <h3 className="text-xxs font-semibold tracking-wide mb-4">SYSTEM EVENTS</h3>
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               {Array(5)
                 .fill(0)
                 .map((_, i) => (
@@ -105,7 +105,7 @@ export function LeftSidebar() {
                     <div className="text-xs">System event: image_created</div>
                   </div>
                 ))}
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

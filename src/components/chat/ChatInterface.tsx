@@ -250,29 +250,35 @@ export function ChatInterface() {
           }
         );
 
-        setMessages(prev => [...prev, { content: '', isBot: true }]);
-
+        let toolData = '';
         let fullResponse = '';
+        let messageCreated = false;
+        
         for await (const chunk of stream) {
-          if ("agent" in chunk) {
-            const content = typeof chunk.agent.messages[0].content === 'string' 
-              ? chunk.agent.messages[0].content 
-              : '';
-            fullResponse += content;
-            setMessages(prev => [
-              ...prev.slice(0, -1),
-              { content: fullResponse, isBot: true }
-            ]);
-          } else if ("tools" in chunk) {
-            // Handle tool responses
+          if ("tools" in chunk) {
             const toolContent = typeof chunk.tools.messages[0].content === 'string'
               ? chunk.tools.messages[0].content
               : '';
             if (toolContent) {
-              setMessages(prev => [
-                ...prev,
-                { content: toolContent, isBot: true, actions: ['tool_response'] }
-              ]);
+              toolData = toolContent;
+            }
+          } 
+          if ("agent" in chunk) {
+            const content = Array.isArray(chunk.agent.messages[0].content)
+              ? chunk.agent.messages[0].content.find((c: { type: string; text: string }) => c.type === 'text')?.text || ''
+              : chunk.agent.messages[0].content || '';
+            
+            if (content) {  // Only proceed if we have actual content
+              if (!messageCreated) {
+                setMessages(prev => [...prev, { content, isBot: true }]);
+                messageCreated = true;
+              } else {
+                setMessages(prev => [
+                  ...prev.slice(0, -1),
+                  { content: fullResponse + content, isBot: true }
+                ]);
+              }
+              fullResponse += content;
             }
           }
         }

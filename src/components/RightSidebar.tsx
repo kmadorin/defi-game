@@ -35,54 +35,79 @@ export function RightSidebar() {
               />
             }
             title="Deffi Portfolio Manager"
-            subtitle="Smart Contract Expert"
+            subtitle="Your personal DeFi portfolio manager"
             isActive
-          />
-          <AgentCard
-            icon={
-              <img
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Layer_x0020_1-oBoVb628yeKi9AhLO6BBnk6ls7svLx.png"
-                alt="Ethereum"
-                className="w-4 h-6"
-              />
-            }
-            title="Ethereum Agent"
-            subtitle="Smart Contract Expert"
           />
 
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" className="text-xs h-8">
-              Contract Audit
+              Wallet Management
             </Button>
             <Button variant="outline" size="sm" className="text-xs h-8">
-              Gas Tracker
-            </Button>
-            <Button variant="outline" size="sm" className="text-xs h-8">
-              Block Explorer
+              DEFI Expertise
             </Button>
           </div>
 
           <AgentCard
             icon={
               <img
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Group%2018-hRoWL4LEJgSV3jGWPO4UYlAnToMmia.png"
+                src="https://brand.morpho.org/_next/static/media/morpho-logo-symbol-white.79a51ba6.svg"
+                alt="Morpho"
+                className="w-4 h-6"
+              />
+            }
+            title="Morpho Agent"
+            subtitle="Morpho protocol Expert"
+          />
+
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" className="text-xs h-8">
+              Deposit
+            </Button>
+            <Button variant="outline" size="sm" className="text-xs h-8">
+              Withdraw
+            </Button>
+          </div>
+
+          <AgentCard
+            icon={
+              <img
+                src="https://app.uniswap.org/static/media/uniswap-logo.9193bf7e07fdaeb1d87b.png"
                 alt="Uniswap"
                 className="w-5 h-5"
               />
             }
             title="Uniswap Agent"
-            subtitle="Smart Contract Expert"
+            subtitle="Uniswap v3 Expert"
           />
 
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" className="text-xs h-8">
-              Onchain History
+              Swap
             </Button>
             <Button variant="outline" size="sm" className="text-xs h-8">
-              Pool Analysis
+              Liquidity provisioning
+            </Button>
+          </div>
+
+          <AgentCard
+            icon={
+              <img
+                src="https://app.aave.com/aave-com-logo-header.svg"
+                alt="Aave"
+                className="w-5 h-5"
+              />
+            }
+            title="Aave Agent"
+            subtitle="Aave protocol Expert"
+          />
+
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" className="text-xs h-8">
+              Deposit
             </Button>
             <Button variant="outline" size="sm" className="text-xs h-8">
-              Price Tracking
+              Withdraw
             </Button>
           </div>
         </div>

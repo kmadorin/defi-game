@@ -1,6 +1,6 @@
 # DEFI Copilot
 
-A gamified DEFI Portfolio Management chat app that helps users navigate the world of DeFi through an AI-powered personal portfolio manager.
+A gamified DeFi portfolio management app powered by AI agents that helps users learn and invest in DEFI
 
 ## Overview
 

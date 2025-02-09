@@ -28,6 +28,7 @@ export class MorphoActionProvider extends ActionProvider<EvmWalletProvider> {
 	 * @returns A success message with transaction details or an error message
 	 */
 	async deposit(args: z.infer<typeof DepositSchema>): Promise<string> {
+		console.log('deposit', args)
 		const assets = new Decimal(args.assets);
 
 		const wallet = this.walletProvider;
